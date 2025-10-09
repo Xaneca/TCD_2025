@@ -2,9 +2,9 @@
 Cadeira de TCD. Mestrado em Inteligência Artificial e Ciência de Dados
 
 # META 1 - Preparação de Dados
-- [ ] 1. Criar script
-- [ ] 2. DataSet
-- [ ]      2.1 CArregar dados indivíduo -> NumPy
+- [x] 1. Criar script
+- [x] 2. DataSet
+- [x]      2.1 Carregar dados indivíduo -> NumPy
 - [ ] 3. Outliers - 3-5% outliers - identificar e tratar
         a)   Univariável
         b)   Multivariável
