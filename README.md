@@ -10,10 +10,10 @@ Cadeira de TCD. Mestrado em Inteligência Artificial e Ciência de Dados
         b)   Multivariável
         c)   Cálcular módulos dos vectores de aceleração, giroscópio, magnetómetro -> vt = (tx, ty, tz)
         d)   || vt || =  √( (tx)^2 + (ty)^2 + (tz)^2 )
-- [ ]      3.1. BoxPlot de cada atividade - todos os sujeitos
-- [ ]             coluna 12 - eixo horizontal
-- [ ]             Eixo vertical - modulo dos vetores (1/grafico)
-- [ ]             MatPlotLib
+- [x]      3.1. BoxPlot de cada atividade - todos os sujeitos
+- [x]             coluna 12 - eixo horizontal
+- [x]             Eixo vertical - modulo dos vetores (1/grafico)
+- [x]             MatPlotLib
 - [ ]      3.2. Densidade Outliers - olhar para os módulos dos vetores
 - [ ]             fórmula: d = (n0)/(nr) * 100
 - [ ]               n0: nº pontos classificados como outliers
