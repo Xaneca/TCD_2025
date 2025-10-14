@@ -8,7 +8,7 @@ titles_sensors = ["pulso esquerdo", "pulso direito", "peito", "perna superior di
 titles_vectors = ["accelerometer", "gyroscope", "magnetometer"]
 NUM_PEOPLE = 15
 NUM_SENSORS = 5
-NUM_ACTIVITIES = 12
+NUM_ACTIVITIES = 16
 NUM_COLUNAS = 12
 individuals = []    # tam 15 -> tam 5 -> tam 12 + data
                     # (15, 5, 12)
@@ -63,6 +63,8 @@ def boxPlot_modules(plot = True):
                 this_activity_outliers += len(np.unique(outl))
         if plot:
             plt.show()
+
+        plt.close()
         outliers.append({
             "num_outliers": this_activity_outliers / 3,
             "num_points": all_people_data.shape[0]  # número de linhas
@@ -170,6 +172,49 @@ def calculateDensityOutliers(num_outliers_per_activity):
                 print(f"    {activities.loc[a, 'name']}: {d}")
     return
 
+def z_scores(data, k):
+    mean = np.mean(data)
+    std_dev = np.std(data)
+
+    z = (data - mean)/std_dev
+
+    outliers_mask = np.abs(z) > k
+    #not_outliers_mask = np.abs(z) <= k
+
+    return outliers_mask
+
+def show_outliers(start_idx, k, title):
+    plt.figure()
+    for s in range(NUM_SENSORS):
+        all_x, all_y, all_colors = [], [], []
+        for i in range(NUM_PEOPLE):
+            module = calculateModule(individuals[i][s], start_idx, start_idx + 2)
+            outliers_mask = z_scores(module, k)
+            all_x.extend(individuals[i][s][:, -1] + 0.1 * s)
+            all_y.extend(module)
+            all_colors.extend(np.where(outliers_mask, "red", "blue"))
+        plt.scatter(all_x, all_y, c=all_colors, s=10, alpha=0.6, label=f"Sensor {s+1}")
+    plt.xticks(range(1, NUM_ACTIVITIES + 1), activities["name"], rotation=90)
+    plt.title(title)
+    plt.legend()
+    plt.grid(True, linestyle="--", alpha=0.5)
+    #plt.tight_layout()
+    plt.show()
+
+    return
+
+def ex_3_4(k):
+    # accelerometter:
+    show_outliers(1, k, "Acelerómetro")
+
+    # gyroscope
+    show_outliers(4, k, "Giroscópio")
+
+    # mangetometer
+    show_outliers(7, k, "Magnetómetro")
+
+    return
+
 def main():
     # EX 2
     getFiles(PATH)                 # get all the individuals
@@ -184,6 +229,13 @@ def main():
     
     # EX 3.2 - analyse outliers
     calculateDensityOutliers(num_outliers_per_sensor)
+
+    # EX 3.3
+    # created: z_scores()
+
+    # EX 3.4
+    k = 3       # 3 ; 3.5 ; 4
+    ex_3_4(k)
 
     return
 
