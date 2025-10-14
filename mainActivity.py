@@ -2,8 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-PATH = "./../../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
+PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
 activities = pd.read_csv("nameActivities.csv")
+titles_sensors = ["pulso esquerdo", "pulso direito", "peito", "perna superior direita", "perna inferior esquerda"]
+titles_vectors = ["accelerometer", "gyroscope", "magnetometer"]
 NUM_PEOPLE = 15
 NUM_SENSORS = 5
 NUM_ACTIVITIES = 12
@@ -46,7 +48,7 @@ def boxPlot_modules(plot = True):
         this_activity_outliers = 0
         plt.figure(figsize =(10, 7))
 
-        plt.title(f"{activities.loc[activity - 1, "name"]}")
+        plt.title(f"{activities.loc[activity - 1, 'name']}")
         for sensor in range(NUM_SENSORS):
             all_people_data = np.empty((0, NUM_COLUNAS))  # inicializa array vazio com 0 linhas
             for ind in range(NUM_PEOPLE):
@@ -68,25 +70,120 @@ def boxPlot_modules(plot = True):
 
     return outliers
 
+def boxPlot_modules_2(plot = True):
+    outliers = []
+    titles = ["accelerometer", "gyroscope", "magnetometer"]
+
+    #Junta todos os arrays num só array 
+    new_list = []
+    for j in range(NUM_PEOPLE):
+        person = np.vstack(individuals[j])
+        new_list.append(person)
+    all_the_data = np.vstack(new_list)
+    #print(all_the_data.shape)
+
+    
+    for i in range (3):        
+        this_activity_outliers = 0
+        
+        #Cria os arrays com os valores para y e x
+        y_vals = calculateModule(all_the_data, 1 + 3 * i, 3 + 3 * i) #Tira o modulo para um dos vectores
+        #print(y_vals)
+        x_vals = all_the_data[:, 11] #Retira todos os valores de x
+        #print(x_vals)
+        unique_x_vals = np.unique(x_vals) #Vai ver os valores unicos das atividades todas - podemos apenas fazer um array de 1 a 12 para poupar tempo -ver Xana
+
+        #print(len(unique_x_vals))
+        #Vamos agrupar os valores pelo seu x
+        data_per_x = [y_vals[x_vals == x] for x in unique_x_vals]
+        #print(len(data_per_x))
+
+        #Imprime o boxplot
+        plt.figure(figsize =(10, 7))
+        plt.title(f"Boxplots de atividades para o modulo do vetor {titles[i]}")
+        bp = plt.boxplot(data_per_x, positions=unique_x_vals, widths=0.6)
+        
+
+        plt.xticks(unique_x_vals, [int(x) for x in unique_x_vals]) #Força os valores de x a aparecerem como interiros
+        plt.xlabel("Atividade")
+        plt.ylabel(f"Valor do modulo do {titles[i]}")
+        plt.grid(True)
+        plt.show()
+
+
+def boxPlot_modules_3(plot = True):
+    outliers = [] #Lista que vai receber o número de outliers de todos os sensores e atividades
+
+    #Junta todos os arrays num só array 
+    for k in range (NUM_SENSORS):
+        this_sensor_outliers = []
+        new_list = []
+        for j in range(NUM_PEOPLE):
+            new_list.append(individuals[j][k])
+        all_the_data = np.vstack(new_list)
+
+        for i in range (3):        
+            this_vector_outliers = []
+
+            #Cria os arrays com os valores para y e x
+            y_vals = calculateModule(all_the_data, 1 + 3 * i, 3 + 3 * i) #Tira o modulo para um dos vectores
+            #print(y_vals)
+            x_vals = all_the_data[:, 11] #Retira todos os valores de x
+            #print(x_vals)
+            unique_x_vals = np.unique(x_vals) #Vai ver os valores unicos das atividades todas - podemos apenas fazer um array de 1 a 12 para poupar tempo -ver Xana
+
+            #print(len(unique_x_vals))
+            #Vamos agrupar os valores pelo seu x
+            data_per_x = [y_vals[x_vals == x] for x in unique_x_vals]
+
+            #Imprime o boxplot
+            plt.figure(figsize =(10, 7))
+            plt.title(f"Boxplots de atividades para o modulo do vetor {titles_vectors[i]} do sensor {titles_sensors[k]}")
+            bp = plt.boxplot(data_per_x, positions=unique_x_vals, widths=0.6)
+            for l, flier in enumerate(bp['fliers']):
+                temp = []
+                outliers_values = flier.get_ydata()
+                temp.append(len(np.unique(outliers_values))) #Coloca o número de outliers sem duplicados
+                temp.append(len(data_per_x[l])) #Coloca o número total de valores por cada boxplot para cada atividade
+                this_vector_outliers.append(temp)
+
+            plt.xticks(unique_x_vals, [int(x) for x in unique_x_vals]) #Força os valores de x a aparecerem como interiros
+            plt.xlabel("Atividade")
+            plt.ylabel(f"Valor do modulo do {titles_vectors[i]}")
+            plt.grid(True)
+            plt.show()
+            this_sensor_outliers.append(this_vector_outliers)
+        outliers.append(this_sensor_outliers)
+    return outliers
+
+
+
+
 def calculateDensityOutliers(num_outliers_per_activity):
     print("------- DENSITY ------")
-    for activity in range(NUM_ACTIVITIES):
-        d = num_outliers_per_activity[activity]["num_outliers"] / num_outliers_per_activity[activity]["num_points"] * 100
-        print(f"{activities.loc[activity, "name"]}: {d}")
+    for s in range(NUM_SENSORS):
+        print(f"--------- Sensor {titles_sensors[s]} ---------")
+        for v in range(3):
+            print(f"  --------- Vector {titles_vectors[v]} ---------")
+            for a in range(NUM_ACTIVITIES):
+                d = num_outliers_per_activity[s][v][a][0] / num_outliers_per_activity[s][v][a][1] * 100
+                print(f"    {activities.loc[a, 'name']}: {d}")
     return
 
 def main():
     # EX 2
     getFiles(PATH)                 # get all the individuals
     ind = getIndividual(PATH, 0)    # get one individual
-    #print(ind)
+    #print(individuals)
     #print(calculateModule(ind[0], 1, 3))
 
     # EX 3.1
-    num_outliers_per_activity = boxPlot_modules(plot = False)   # still with outliers
-
+    #num_outliers_per_activity = boxPlot_modules(plot = True)   # still with outliers
+    num_outliers_per_sensor = boxPlot_modules_3(plot = True) 
+    #print(num_outliers_per_sensor)
+    
     # EX 3.2 - analyse outliers
-    calculateDensityOutliers(num_outliers_per_activity)
+    calculateDensityOutliers(num_outliers_per_sensor)
 
     return
 
