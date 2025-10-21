@@ -4,8 +4,8 @@ import pandas as pd
 
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
 activities = pd.read_csv("nameActivities.csv")
-titles_sensors = ["pulso esquerdo", "pulso direito", "peito", "perna superior direita", "perna inferior esquerda"]
-titles_vectors = ["accelerometer", "gyroscope", "magnetometer"]
+titles_sensors = ["Left wrist", "Right wrist", "Chest", "Upper right leg", "Lower left leg"]
+titles_vectors = ["Accelerometer", "Gyroscope", "Magnetometer"]
 NUM_PEOPLE = 15
 NUM_SENSORS = 5
 NUM_ACTIVITIES = 16
@@ -140,7 +140,7 @@ def boxPlot_modules_3(plot = True):
 
             #Imprime o boxplot
             plt.figure(figsize =(10, 7))
-            plt.title(f"Boxplots de atividades para o modulo do vetor {titles_vectors[i]} do sensor {titles_sensors[k]}")
+            plt.title(f"Activity Boxplots for the Vector Module {titles_vectors[i]} of the {titles_sensors[k]} sensor")
             bp = plt.boxplot(data_per_x, positions=unique_x_vals, widths=0.6)
             for l, flier in enumerate(bp['fliers']):
                 temp = []
@@ -150,8 +150,8 @@ def boxPlot_modules_3(plot = True):
                 this_vector_outliers.append(temp)
 
             plt.xticks(unique_x_vals, [int(x) for x in unique_x_vals]) #Força os valores de x a aparecerem como interiros
-            plt.xlabel("Atividade")
-            plt.ylabel(f"Valor do modulo do {titles_vectors[i]}")
+            plt.xlabel("Activity")
+            plt.ylabel(f"Value of the Vector Module {titles_vectors[i]}")
             plt.grid(True)
             plt.show()
             this_sensor_outliers.append(this_vector_outliers)
@@ -184,36 +184,69 @@ def z_scores(data, k):
     return outliers_mask
 
 def show_outliers(start_idx, k, title):
-    plt.figure()
     for s in range(NUM_SENSORS):
         all_x, all_y, all_colors = [], [], []
         for i in range(NUM_PEOPLE):
             module = calculateModule(individuals[i][s], start_idx, start_idx + 2)
             outliers_mask = z_scores(module, k)
-            all_x.extend(individuals[i][s][:, -1] + 0.1 * s)
+            all_x.extend(individuals[i][s][:, -1])
             all_y.extend(module)
             all_colors.extend(np.where(outliers_mask, "red", "blue"))
-        plt.scatter(all_x, all_y, c=all_colors, s=10, alpha=0.6, label=f"Sensor {s+1}")
-    plt.xticks(range(1, NUM_ACTIVITIES + 1), activities["name"], rotation=90)
-    plt.title(title)
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.5)
-    #plt.tight_layout()
-    plt.show()
+        plt.figure(figsize =(8, 5))
+        plt.scatter(all_x, all_y, c=all_colors, s=10, alpha=0.6)
+        plt.xticks(range(1, NUM_ACTIVITIES + 1))
+        plt.title(f"{title} for Sensor {titles_sensors[s]}")
+        plt.xlabel("Activity")
+        plt.ylabel(f"Value of the Vector Module {title}")
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.5)
+        #plt.tight_layout()
+        plt.show()
 
     return
 
 def ex_3_4(k):
     # accelerometter:
-    show_outliers(1, k, "Acelerómetro")
+    show_outliers(1, k, titles_vectors[0])
 
     # gyroscope
-    show_outliers(4, k, "Giroscópio")
+    show_outliers(4, k, titles_vectors[1])
 
     # mangetometer
-    show_outliers(7, k, "Magnetómetro")
+    show_outliers(7, k, titles_vectors[2])
 
     return
+
+#Input da função (dados em nparry, number of clusters, maximo de iterações, limite, )
+def kmeans(X, n_clusters=3, max_iters=100, tol=1e-4, random_state=None):
+    # Configura semente aleatória
+    if random_state is not None:
+        np.random.seed(random_state)
+
+    # Escolhe aleatoriamente centróides iniciais
+    indices = np.random.choice(X.shape[0], n_clusters, replace=False) #Escolhe n_clusters do array X e oreplace = False faz com que não escolha pontos do array X repetidos
+    centroids = X[indices] 
+
+    for iteration in range(max_iters):
+        # 1️⃣ Atribui cada ponto ao centróide mais próximo
+        distances = np.linalg.norm(X[:, np.newaxis] - centroids, axis=2)
+        labels = np.argmin(distances, axis=1)
+
+        # 2️⃣ Calcula novos centróides
+        new_centroids = np.array([
+            X[labels == k].mean(axis=0) if np.any(labels == k) else centroids[k]
+            for k in range(n_clusters)
+        ])
+
+        # 3️⃣ Verifica convergência
+        shift = np.linalg.norm(new_centroids - centroids)
+        if shift < tol:
+            print(f"Convergência atingida na iteração {iteration + 1}")
+            break
+
+        centroids = new_centroids
+
+    return centroids, labels
 
 def main():
     # EX 2
@@ -224,11 +257,11 @@ def main():
 
     # EX 3.1
     #num_outliers_per_activity = boxPlot_modules(plot = True)   # still with outliers
-    num_outliers_per_sensor = boxPlot_modules_3(plot = True) 
+    num_outliers_per_sensor = boxPlot_modules_3(plot = True)  #This is the right one
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
-    calculateDensityOutliers(num_outliers_per_sensor)
+    #calculateDensityOutliers(num_outliers_per_sensor)
 
     # EX 3.3
     # created: z_scores()
@@ -236,6 +269,9 @@ def main():
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
     ex_3_4(k)
+
+    # EX 3.6
+
 
     return
 
