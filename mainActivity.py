@@ -154,11 +154,14 @@ def boxPlot_modules_3(plot = True):
             plt.xlabel("Activity")
             plt.ylabel(f"Value of the Vector Module {titles_vectors[i]}")
             plt.grid(True)
-            plt.show()
+            if plot:
+                plt.show()
+            plt.close()
             this_sensor_outliers.append(this_vector_outliers)
         outliers.append(this_sensor_outliers)
     return outliers
 
+<<<<<<< Updated upstream
 def create_list_by_sensor():
     all_by_sensor = []
     for k in range (NUM_SENSORS):
@@ -170,6 +173,8 @@ def create_list_by_sensor():
     return all_by_sensor
 
 
+=======
+>>>>>>> Stashed changes
 def calculateDensityOutliers(num_outliers_per_activity):
     print("------- DENSITY ------")
     for s in range(NUM_SENSORS):
@@ -197,11 +202,11 @@ def show_outliers(start_idx, k, title):
         all_x, all_y, all_colors = [], [], []
         for i in range(NUM_PEOPLE):
             module = calculateModule(individuals[i][s], start_idx, start_idx + 2)
-            outliers_mask = z_scores(module, k)
             all_x.extend(individuals[i][s][:, -1])
             all_y.extend(module)
-            all_colors.extend(np.where(outliers_mask, "red", "blue"))
-        plt.figure(figsize =(8, 5))
+        outliers_mask = z_scores(all_y, k)
+        all_colors.extend(np.where(outliers_mask, "red", "blue"))
+        plt.figure(figsize = (8, 5))
         plt.scatter(all_x, all_y, c=all_colors, s=10, alpha=0.6)
         plt.xticks(range(1, NUM_ACTIVITIES + 1))
         plt.title(f"{title} for Sensor {titles_sensors[s]}")
@@ -209,9 +214,7 @@ def show_outliers(start_idx, k, title):
         plt.ylabel(f"Value of the Vector Module {title}")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
-        #plt.tight_layout()
         plt.show()
-
     return
 
 def ex_3_4(k):
@@ -291,11 +294,15 @@ def main():
 
     # EX 3.1
     #num_outliers_per_activity = boxPlot_modules(plot = True)   # still with outliers
+<<<<<<< Updated upstream
     #num_outliers_per_sensor = boxPlot_modules_3(plot = True)  #This is the right one
+=======
+    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+>>>>>>> Stashed changes
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
-    #calculateDensityOutliers(num_outliers_per_sensor)
+    calculateDensityOutliers(num_outliers_per_sensor)
 
     # EX 3.3
     # created: z_scores()
