@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
@@ -161,7 +160,7 @@ def boxPlot_modules_3(plot = True):
         outliers.append(this_sensor_outliers)
     return outliers
 
-<<<<<<< Updated upstream
+
 def create_list_by_sensor():
     all_by_sensor = []
     for k in range (NUM_SENSORS):
@@ -173,8 +172,7 @@ def create_list_by_sensor():
     return all_by_sensor
 
 
-=======
->>>>>>> Stashed changes
+
 def calculateDensityOutliers(num_outliers_per_activity):
     print("------- DENSITY ------")
     for s in range(NUM_SENSORS):
@@ -237,20 +235,20 @@ def kmeans(X, n_clusters=3, max_iters=100, tol=1e-4, random_state=None):
 
     # Escolhe aleatoriamente centróides iniciais
     indices = np.random.choice(X.shape[0], n_clusters, replace=False) #Escolhe n_clusters do array X e oreplace = False faz com que não escolha pontos do array X repetidos
-    centroids = X[indices]
+    centroids = X[indices] 
 
     for iteration in range(max_iters):
-        # Atribui cada ponto ao centróide mais próximo
+        # 1️⃣ Atribui cada ponto ao centróide mais próximo
         distances = np.linalg.norm(X[:, np.newaxis] - centroids, axis=2)
         labels = np.argmin(distances, axis=1)
 
-        # Calcula novos centróides
+        # 2️⃣ Calcula novos centróides
         new_centroids = np.array([
             X[labels == k].mean(axis=0) if np.any(labels == k) else centroids[k]
             for k in range(n_clusters)
         ])
 
-        # Verifica convergência
+        # 3️⃣ Verifica convergência
         shift = np.linalg.norm(new_centroids - centroids)
         if shift < tol:
             print(f"Convergência atingida na iteração {iteration + 1}")
@@ -259,31 +257,6 @@ def kmeans(X, n_clusters=3, max_iters=100, tol=1e-4, random_state=None):
         centroids = new_centroids
 
     return centroids, labels
-
-def graph_3d(centroids):
-
-    x = np.transpose(centroids[:, 0])
-    y = np.transpose(centroids[:, 1])
-    z = np.transpose(centroids[:, 2])
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    n_centroids = len(x)
-
-    colors = ['blue', 'green', 'black', 'red', 'yellow', 'orange']
-
-    # Plotar com cores diferentes para cada label
-    ax.scatter(x, y, z, c=colors[:n_centroids], s=60)
-
-
-    # Rótulos dos eixos
-    ax.set_xlabel('Eixo X')
-    ax.set_ylabel('Eixo Y')
-    ax.set_zlabel('Eixo Z')
-
-    plt.show()
-
 
 def main():
     # EX 2
@@ -294,11 +267,12 @@ def main():
 
     # EX 3.1
     #num_outliers_per_activity = boxPlot_modules(plot = True)   # still with outliers
-<<<<<<< Updated upstream
+
     #num_outliers_per_sensor = boxPlot_modules_3(plot = True)  #This is the right one
-=======
-    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
->>>>>>> Stashed changes
+
+
+    num_outliers_per_sensor = boxPlot_modules_3(plot = True)  #This is the right one
+
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
@@ -309,17 +283,9 @@ def main():
 
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
-    #ex_3_4(k)
+    ex_3_4(k)
 
     # EX 3.6
-    centroids, labels = kmeans(individuals[0][0][:, 1:4], 3, 100, 1e-4, 40)
-    print(individuals[0][0][:, 1:4].shape)
-
-    print(centroids)
-    print(labels)
-
-    graph_3d(centroids)
-    
 
 
     return
