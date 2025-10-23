@@ -13,7 +13,7 @@ NUM_ACTIVITIES = 16
 NUM_COLUNAS = 12
 individuals = []    # tam 15 -> tam 5 -> tam 12 + data
                     # (15, 5, 12)
-all_by_sensor = []
+sensors_data = []
 
 def getFiles(path):
     for i in range(NUM_PEOPLE):
@@ -126,18 +126,18 @@ def boxPlot_modules_3(plot = True):
             new_list.append(individuals[j][k])
         all_the_data = np.vstack(new_list)
 
-        num_vectors = 1
+        num_vectors = 3
         for i in range (num_vectors):        
             this_vector_outliers = []
 
             #Cria os arrays com os valores para y e x
             y_vals = calculateModule(all_the_data, 1 + 3 * i, 3 + 3 * i) #Tira o modulo para um dos vectores
             #print(y_vals)
-            x_vals = all_the_data[:, 11] #Retira todos os valores de x
+            x_vals = all_the_data[:, 11] #Retira todos os valores de x - num das atividades
             #print(x_vals)
-            unique_x_vals = np.unique(x_vals) #Vai ver os valores unicos das atividades todas - podemos apenas fazer um array de 1 a 12 para poupar tempo -ver Xana
+            unique_x_vals = np.unique(x_vals) #Vai ver os valores unicos das atividades todas - podemos apenas fazer um array de 1 a 16 para poupar tempo -ver Xana
+                                                                                            # -> acho q nao pq é preciso associar cada valor de y a um x
 
-            #print(len(unique_x_vals))
             #Vamos agrupar os valores pelo seu x
             data_per_x = [y_vals[x_vals == x] for x in unique_x_vals]
 
@@ -172,14 +172,9 @@ def create_list_by_sensor():
         for j in range(NUM_PEOPLE):
             new_list.append(individuals[j][k])
         all_the_data = np.vstack(new_list)
-        all_by_sensor.append(all_the_data) 
-    return all_by_sensor
+        sensors_data.append(all_the_data) 
+    return sensors_data
 
-
-
-def box_plot_4():
-
-    return
 
 def calculateDensityOutliers(num_outliers_per_activity):
     print("------- DENSITY ------")
@@ -189,7 +184,7 @@ def calculateDensityOutliers(num_outliers_per_activity):
             print(f"  --------- Vector {titles_vectors[v]} ---------")
             for a in range(NUM_ACTIVITIES):
                 d = num_outliers_per_activity[s][v][a][0] / num_outliers_per_activity[s][v][a][1] * 100
-                print(f"    {activities.loc[a, 'name']}: {d}")
+                print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
     return
 
 def z_scores(data, k):
@@ -220,8 +215,42 @@ def show_outliers(start_idx, k, title):
         plt.ylabel(f"Value of the Vector Module {title}")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
-        plt.savefig(PLOT_PATH + "/ex3_3" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+        plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
         plt.show()
+    return
+
+def show_outliers(start_idx, k, title):
+    sensors_list = create_list_by_sensor()
+    for s in range(NUM_SENSORS):
+        colors = []
+        this_sensor = sensors_list[s]
+        y = calculateModule(this_sensor, start_idx, start_idx + 2)
+        x = this_sensor[:,-1]   # activity value
+        outliers_mask = z_scores(y, k)
+
+        for act in np.unique(x):
+            mask = x == act
+            y_act = y[mask]
+            mean = np.mean(y_act)
+            std = np.std(y_act)
+
+            if std != 0:
+                z = (y_act - mean) / std
+                outliers_mask[mask] = np.abs(z) > k  # marca só os dessa atividade
+
+        colors.extend(np.where(outliers_mask, "red", "blue"))
+        print(colors[:50])
+        plt.figure(figsize = (8,5))
+        plt.scatter(x, y, c=colors, s=10, alpha=0.6)
+        plt.xticks(range(1, NUM_ACTIVITIES + 1))
+        plt.title(f"{title} for Sensor {titles_sensors[s]}")
+        plt.xlabel("Activity")
+        plt.ylabel(f"Value of the Vector Module {title}")
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+        plt.show()
+
     return
 
 def ex_3_4(k):
