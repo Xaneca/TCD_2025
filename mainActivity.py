@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
+PLOT_PATH = "./plots"
 activities = pd.read_csv("nameActivities.csv")
 titles_sensors = ["Left wrist", "Right wrist", "Chest", "Upper right leg", "Lower left leg"]
 titles_vectors = ["Accelerometer", "Gyroscope", "Magnetometer"]
@@ -12,6 +13,7 @@ NUM_ACTIVITIES = 16
 NUM_COLUNAS = 12
 individuals = []    # tam 15 -> tam 5 -> tam 12 + data
                     # (15, 5, 12)
+all_by_sensor = []
 
 def getFiles(path):
     for i in range(NUM_PEOPLE):
@@ -124,7 +126,8 @@ def boxPlot_modules_3(plot = True):
             new_list.append(individuals[j][k])
         all_the_data = np.vstack(new_list)
 
-        for i in range (3):        
+        num_vectors = 1
+        for i in range (num_vectors):        
             this_vector_outliers = []
 
             #Cria os arrays com os valores para y e x
@@ -153,6 +156,8 @@ def boxPlot_modules_3(plot = True):
             plt.xlabel("Activity")
             plt.ylabel(f"Value of the Vector Module {titles_vectors[i]}")
             plt.grid(True)
+            plt.savefig(PLOT_PATH + "/ex3_1" + f"/sensor{k}_vector{i}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+
             if plot:
                 plt.show()
             plt.close()
@@ -160,9 +165,8 @@ def boxPlot_modules_3(plot = True):
         outliers.append(this_sensor_outliers)
     return outliers
 
-
 def create_list_by_sensor():
-    all_by_sensor = []
+    #all_by_sensor = []
     for k in range (NUM_SENSORS):
         new_list = []
         for j in range(NUM_PEOPLE):
@@ -172,6 +176,10 @@ def create_list_by_sensor():
     return all_by_sensor
 
 
+
+def box_plot_4():
+
+    return
 
 def calculateDensityOutliers(num_outliers_per_activity):
     print("------- DENSITY ------")
@@ -212,6 +220,7 @@ def show_outliers(start_idx, k, title):
         plt.ylabel(f"Value of the Vector Module {title}")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
+        plt.savefig(PLOT_PATH + "/ex3_3" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
         plt.show()
     return
 
@@ -266,12 +275,8 @@ def main():
     #print(calculateModule(ind[0], 1, 3))
 
     # EX 3.1
-    #num_outliers_per_activity = boxPlot_modules(plot = True)   # still with outliers
 
-    #num_outliers_per_sensor = boxPlot_modules_3(plot = True)  #This is the right one
-
-
-    num_outliers_per_sensor = boxPlot_modules_3(plot = True)  #This is the right one
+    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
