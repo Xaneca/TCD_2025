@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
+PLOT_PATH = "./plots"
 activities = pd.read_csv("nameActivities.csv")
 titles_sensors = ["Left wrist", "Right wrist", "Chest", "Upper right leg", "Lower left leg"]
 titles_vectors = ["Accelerometer", "Gyroscope", "Magnetometer"]
@@ -13,6 +13,7 @@ NUM_ACTIVITIES = 16
 NUM_COLUNAS = 12
 individuals = []    # tam 15 -> tam 5 -> tam 12 + data
                     # (15, 5, 12)
+sensors_data = []
 
 def getFiles(path):
     for i in range(NUM_PEOPLE):
@@ -125,17 +126,18 @@ def boxPlot_modules_3(plot = True):
             new_list.append(individuals[j][k])
         all_the_data = np.vstack(new_list)
 
-        for i in range (3):        
+        num_vectors = 3
+        for i in range (num_vectors):        
             this_vector_outliers = []
 
             #Cria os arrays com os valores para y e x
             y_vals = calculateModule(all_the_data, 1 + 3 * i, 3 + 3 * i) #Tira o modulo para um dos vectores
             #print(y_vals)
-            x_vals = all_the_data[:, 11] #Retira todos os valores de x
+            x_vals = all_the_data[:, 11] #Retira todos os valores de x - num das atividades
             #print(x_vals)
-            unique_x_vals = np.unique(x_vals) #Vai ver os valores unicos das atividades todas - podemos apenas fazer um array de 1 a 12 para poupar tempo -ver Xana
+            unique_x_vals = np.unique(x_vals) #Vai ver os valores unicos das atividades todas - podemos apenas fazer um array de 1 a 16 para poupar tempo -ver Xana
+                                                                                            # -> acho q nao pq é preciso associar cada valor de y a um x
 
-            #print(len(unique_x_vals))
             #Vamos agrupar os valores pelo seu x
             data_per_x = [y_vals[x_vals == x] for x in unique_x_vals]
 
@@ -154,20 +156,24 @@ def boxPlot_modules_3(plot = True):
             plt.xlabel("Activity")
             plt.ylabel(f"Value of the Vector Module {titles_vectors[i]}")
             plt.grid(True)
-            plt.show()
+            plt.savefig(PLOT_PATH + "/ex3_1" + f"/sensor{k}_vector{i}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+
+            if plot:
+                plt.show()
+            plt.close()
             this_sensor_outliers.append(this_vector_outliers)
         outliers.append(this_sensor_outliers)
     return outliers
 
 def create_list_by_sensor():
-    all_by_sensor = []
+    #all_by_sensor = []
     for k in range (NUM_SENSORS):
         new_list = []
         for j in range(NUM_PEOPLE):
             new_list.append(individuals[j][k])
         all_the_data = np.vstack(new_list)
-        all_by_sensor.append(all_the_data) 
-    return all_by_sensor
+        sensors_data.append(all_the_data) 
+    return sensors_data
 
 
 def calculateDensityOutliers(num_outliers_per_activity):
@@ -178,7 +184,7 @@ def calculateDensityOutliers(num_outliers_per_activity):
             print(f"  --------- Vector {titles_vectors[v]} ---------")
             for a in range(NUM_ACTIVITIES):
                 d = num_outliers_per_activity[s][v][a][0] / num_outliers_per_activity[s][v][a][1] * 100
-                print(f"    {activities.loc[a, 'name']}: {d}")
+                print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
     return
 
 def z_scores(data, k):
@@ -197,11 +203,11 @@ def show_outliers(start_idx, k, title):
         all_x, all_y, all_colors = [], [], []
         for i in range(NUM_PEOPLE):
             module = calculateModule(individuals[i][s], start_idx, start_idx + 2)
-            outliers_mask = z_scores(module, k)
             all_x.extend(individuals[i][s][:, -1])
             all_y.extend(module)
-            all_colors.extend(np.where(outliers_mask, "red", "blue"))
-        plt.figure(figsize =(8, 5))
+        outliers_mask = z_scores(all_y, k)
+        all_colors.extend(np.where(outliers_mask, "red", "blue"))
+        plt.figure(figsize = (8, 5))
         plt.scatter(all_x, all_y, c=all_colors, s=10, alpha=0.6)
         plt.xticks(range(1, NUM_ACTIVITIES + 1))
         plt.title(f"{title} for Sensor {titles_sensors[s]}")
@@ -209,7 +215,40 @@ def show_outliers(start_idx, k, title):
         plt.ylabel(f"Value of the Vector Module {title}")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
-        #plt.tight_layout()
+        plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+        plt.show()
+    return
+
+def show_outliers(start_idx, k, title):
+    sensors_list = create_list_by_sensor()
+    for s in range(NUM_SENSORS):
+        colors = []
+        this_sensor = sensors_list[s]
+        y = calculateModule(this_sensor, start_idx, start_idx + 2)
+        x = this_sensor[:,-1]   # activity value
+        outliers_mask = z_scores(y, k)
+
+        for act in np.unique(x):
+            mask = x == act
+            y_act = y[mask]
+            mean = np.mean(y_act)
+            std = np.std(y_act)
+
+            if std != 0:
+                z = (y_act - mean) / std
+                outliers_mask[mask] = np.abs(z) > k  # marca só os dessa atividade
+
+        colors.extend(np.where(outliers_mask, "red", "blue"))
+        print(colors[:50])
+        plt.figure(figsize = (8,5))
+        plt.scatter(x, y, c=colors, s=10, alpha=0.6)
+        plt.xticks(range(1, NUM_ACTIVITIES + 1))
+        plt.title(f"{title} for Sensor {titles_sensors[s]}")
+        plt.xlabel("Activity")
+        plt.ylabel(f"Value of the Vector Module {title}")
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
         plt.show()
 
     return
@@ -234,20 +273,20 @@ def kmeans(X, n_clusters, max_iters, tol, random_state=None):
 
     # Escolhe aleatoriamente centróides iniciais
     indices = np.random.choice(X.shape[0], n_clusters, replace=False) #Escolhe n_clusters do array X e oreplace = False faz com que não escolha pontos do array X repetidos
-    centroids = X[indices]
+    centroids = X[indices] 
 
     for iteration in range(max_iters):
-        # Atribui cada ponto ao centróide mais próximo
+        # 1️⃣ Atribui cada ponto ao centróide mais próximo
         distances = np.linalg.norm(X[:, np.newaxis] - centroids, axis=2)
         labels = np.argmin(distances, axis=1)
 
-        # Calcula novos centróides
+        # 2️⃣ Calcula novos centróides
         new_centroids = np.array([
             X[labels == k].mean(axis=0) if np.any(labels == k) else centroids[k]
             for k in range(n_clusters)
         ])
 
-        # Verifica convergência
+        # 3️⃣ Verifica convergência
         shift = np.linalg.norm(new_centroids - centroids)
         if shift < tol:
             print(f"Convergência atingida na iteração {iteration + 1}")
@@ -439,19 +478,20 @@ def main():
     #print(calculateModule(ind[0], 1, 3))
 
     # EX 3.1
-    #num_outliers_per_activity = boxPlot_modules(plot = True)   # still with outliers
-    #num_outliers_per_sensor = boxPlot_modules_3(plot = True)  #This is the right one
+
+    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
-    #calculateDensityOutliers(num_outliers_per_sensor)
+    calculateDensityOutliers(num_outliers_per_sensor)
 
     # EX 3.3
     # created: z_scores()
 
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
-    #ex_3_4(k)
+    ex_3_4(k)
 
     # EX 3.6
     #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
