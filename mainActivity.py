@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.model_selection import KFold
+from sklearn.metrics import mean_squared_error
+from sklearn.linear_model import LinearRegression
+
 
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
 PLOT_PATH = "./plots"
@@ -14,6 +18,8 @@ NUM_COLUNAS = 12
 individuals = []    # tam 15 -> tam 5 -> tam 12 + data
                     # (15, 5, 12)
 sensors_data = []
+
+people_data = []
 
 def getFiles(path):
     for i in range(NUM_PEOPLE):
@@ -173,7 +179,14 @@ def create_list_by_sensor():
             new_list.append(individuals[j][k])
         all_the_data = np.vstack(new_list)
         sensors_data.append(all_the_data) 
-    return sensors_data
+
+def create_list_complete():
+    for j in range(NUM_PEOPLE):
+        new_list = []
+        for s in range (NUM_SENSORS):
+            new_list.append(individuals[j][s])
+        all_the_data = np.vstack(new_list)
+        people_data.append(all_the_data)
 
 
 def calculateDensityOutliers(num_outliers_per_activity):
@@ -276,17 +289,17 @@ def kmeans(X, n_clusters, max_iters, tol, random_state=None):
     centroids = X[indices] 
 
     for iteration in range(max_iters):
-        # 1️⃣ Atribui cada ponto ao centróide mais próximo
+        # Atribui cada ponto ao centróide mais próximo
         distances = np.linalg.norm(X[:, np.newaxis] - centroids, axis=2)
         labels = np.argmin(distances, axis=1)
 
-        # 2️⃣ Calcula novos centróides
+        # Calcula novos centróides
         new_centroids = np.array([
             X[labels == k].mean(axis=0) if np.any(labels == k) else centroids[k]
             for k in range(n_clusters)
         ])
 
-        # 3️⃣ Verifica convergência
+        # Verifica convergência
         shift = np.linalg.norm(new_centroids - centroids)
         if shift < tol:
             print(f"Convergência atingida na iteração {iteration + 1}")
@@ -406,13 +419,14 @@ def inject_outliers(data, k, percentage, z):
 
     # Identificar outliers atuais
     outlier_mask = (data < lower_bound) | (data > upper_bound)
-    current_outliers = np.sum(outlier_mask)
+    current_outlier_indices = np.where(outlier_mask)[0]
+    current_outliers = len(current_outlier_indices)
     total = len(data)
     current_density = current_outliers / total * 100
 
     # Se já há outliers suficientes → termina
     if current_density >= percentage:
-        return data, current_outliers
+        return data, current_outliers, current_outlier_indices
 
     # Caso contrário, injetar novos outliers
     target_outliers = int(percentage * total)
@@ -435,7 +449,11 @@ def inject_outliers(data, k, percentage, z):
     # Injetar os novos valores
     data[inject_indices] = new_values
 
-    return data, target_outliers
+    all_outlier_indices = np.sort(
+        np.concatenate((current_outlier_indices, inject_indices))
+    )
+
+    return data, target_outliers, all_outlier_indices
 
 # EX3.9
 def linear_model(X, y):
@@ -444,29 +462,120 @@ def linear_model(X, y):
 
     # Calcular betas com a fórmula (XᵀX)⁻¹ Xᵀ y
     beta = np.linalg.pinv(X) @ y
-    print(beta)
 
     return beta
 
+def linear_model_2(X, y):
+    # Cria o modelo linear
+    model = LinearRegression(fit_intercept=True)
+    
+    # Treina o modelo (ajusta os betas)
+    model.fit(X, y)
+    
+    return model
+
+
+def linear_model_predict_2(X, model):
+    y_pred = model.predict(X)
+    return y_pred
+
+
+
 #EX3.9
 def linear_model_predict(X, beta):
+    X = np.column_stack((np.ones(X.shape[0]), X))  # intercepto
     #preve o y pelo modelo linear
     y_pred = X @ beta
-    print(y_pred)
 
     return y_pred
 
 
 def generate_windows(data, p):
-    x = []
-    y = []
-    for i in range (len(data)):
-        x.append(data[i:i+p,:])
-        y.append(data[p+i])
-    final_x = np.vstack(x)
-    final_y = np.vstack(y)
+    # Garantir que data tem 2 dimensões
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
 
-    return final_x, final_y
+    x, y = [], []
+    for i in range(len(data) - p):
+        # Janela de entrada
+        x.append(np.hstack(data[i:i+p, :]))  # usa p valores consecutivos
+        # Valor a prever (seguinte)
+        y.append(data[i+p, :])
+
+    #print(x)
+    #print(y)
+
+    # Converter listas em arrays numpy
+    return np.vstack(x), np.vstack(y)
+
+def cross_validation(data, p_values, n_splits=5):
+    errors = []
+
+    for p in p_values:
+        X, y = generate_windows(data, p)
+        kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+        fold_errors = []
+        for train_idx, test_idx in kf.split(X):
+            X_train, X_test = X[train_idx], X[test_idx]
+            y_train, y_test = y[train_idx], y[test_idx]
+
+            beta = linear_model(X_train, y_train)
+            y_pred = linear_model_predict(X_test, beta)
+
+            mse = mean_squared_error(y_test, y_pred)
+            fold_errors.append(mse)
+
+        mean_error = np.mean(fold_errors)
+        errors.append(mean_error)
+        print(f"p = {p}, erro médio = {mean_error:.4f}")
+
+    return errors
+
+def generate_windows_outliers(data, outliers_indexes, p):
+    # Garantir que data tem 2 dimensões
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
+
+    x, y = [], []
+    for index in range(outliers_indexes):
+        # Janela de entrada
+        x.append(np.hstack(data[index:index+p, :]))  # usa p valores consecutivos
+        # Valor a prever (seguinte)
+        y.append(data[index+p, :])
+
+    #print(x)
+    #print(y)
+
+    # Converter listas em arrays numpy
+    return np.vstack(x), np.vstack(y)
+
+def removes_outliers_for_predictions(data, outlier_indices, y_prev):
+    i = 0
+    for index in outlier_indices:
+        data[index] = y_prev[i]
+        i += 1
+    return data
+
+#EX3.11
+def generate_centered_windows(data, p):
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
+
+    half_p = p // 2
+    x, y = [], []
+
+    for i in range(half_p, len(data) - half_p):
+        # p/2 valores antes e p/2 depois
+        window = np.hstack((
+            data[i - half_p:i, :],
+            data[i + 1:i + half_p + 1, :]
+        ))
+        x.append(window)
+        y.append(data[i])
+
+    return np.vstack(x), np.vstack(y)
+
 
 
 
@@ -479,19 +588,19 @@ def main():
 
     # EX 3.1
 
-    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+    #num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
-    calculateDensityOutliers(num_outliers_per_sensor)
+    #calculateDensityOutliers(num_outliers_per_sensor)
 
     # EX 3.3
     # created: z_scores()
 
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
-    ex_3_4(k)
+    #ex_3_4(k)
 
     # EX 3.6
     #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
@@ -512,15 +621,65 @@ def main():
 
 
     #EX3.10
-    all_sensors_list = create_list_by_sensor()
+    create_list_by_sensor()
+    create_list_complete()
 
-    all_data_in_one_array = np.vstack(all_sensors_list)
+    all_data_in_one_array = np.vstack(people_data)
 
     modules_acceleration = calculateModule(all_data_in_one_array, 1, 4)
 
-    x, y = generate_windows(modules_acceleration, 5)
+    '''
+    t = np.linspace(0, 50, 1000)  # 1000 pontos entre 0 e 50
+    data = np.sin(t) + 0.1 * np.random.randn(len(t))  # seno + ruído pequeno
+    data = data.reshape(-1, 1)  # garantir formato (N, 1) #um teste para saber se o linear model estava correcto e está'''
 
-    linear_model(x, y)
+    x, y = generate_windows(modules_acceleration, 4)
+
+    modules_acceleration = modules_acceleration.reshape(-1, 1)
+
+    print(x)
+
+    p_values = range(1,5)
+
+    errors = cross_validation(modules_acceleration, p_values, 5)
+
+    plt.figure(figsize=(8,5))
+    plt.plot(p_values, errors, marker='o')
+    plt.xlabel('Valor de p')
+    plt.ylabel('Erro médio (MSE)')
+    plt.title('Erro de previsão vs Tamanho da janela (p)')
+    plt.grid(True)
+    plt.show()
+
+    data, target_outliers, outlier_indices = inject_outliers(modules_acceleration, k, 10, 1)
+
+    #Para esta iteração escolher o p que tiver menos erro no cross_validation
+    x, y = generate_windows(modules_acceleration, 4)
+    beta = linear_model(x, y)
+
+    x1, y1 = generate_windows_outliers(modules_acceleration, outlier_indices, 4)
+    y_prev = linear_model_predict(x1, beta)
+
+    modules_acceleration_no_outliers = removes_outliers_for_predictions(modules_acceleration, outlier_indices, y_prev)
+
+    modules_gyroscope = calculateModule(all_data_in_one_array, 4, 7)
+    modules_gyroscope = modules_gyroscope.reshape(-1, 1)
+    modules_magnetometer = calculateModule(all_data_in_one_array, 7, 10)
+    modules_magnetometer = modules_magnetometer.reshape(-1, 1)
+
+    all_modules = np.hstack(modules_acceleration, modules_gyroscope, modules_magnetometer)
+
+    #x, y = generate_centered_windows(all_modules, 4)
+
+    errors = cross_validation(all_modules, p_values, 5)
+    
+
+
+
+
+    
+
+
     
 
 
