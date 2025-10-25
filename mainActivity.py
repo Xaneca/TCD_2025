@@ -227,7 +227,7 @@ def ex_3_4(k):
     return
 
 #Input da função (dados em nparry, number of clusters, maximo de iterações, limite, )
-def kmeans(X, n_clusters=3, max_iters=100, tol=1e-4, random_state=None):
+def kmeans(X, n_clusters, max_iters, tol, random_state=None):
     # Configura semente aleatória
     if random_state is not None:
         np.random.seed(random_state)
@@ -255,31 +255,180 @@ def kmeans(X, n_clusters=3, max_iters=100, tol=1e-4, random_state=None):
 
         centroids = new_centroids
 
-    return centroids, labels
+    return centroids, labels, distances
 
-def graph_3d(centroids):
-
-    x = np.transpose(centroids[:, 0])
-    y = np.transpose(centroids[:, 1])
-    z = np.transpose(centroids[:, 2])
-
+def graph_3d(centroids, data, labels, outliers):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    n_centroids = len(x)
+    # Extrair coordenadas dos dados
+    x, y, z = data[:, 0], data[:, 1], data[:, 2]
 
-    colors = ['blue', 'green', 'black', 'red', 'yellow', 'orange']
+   # Máscaras
+    mask_outliers = outliers[:, 1] == 1
+    mask_normais  = outliers[:, 1] == 0
 
-    # Plotar com cores diferentes para cada label
-    ax.scatter(x, y, z, c=colors[:n_centroids], s=60)
+    # Plotar pontos normais com as cores dos labels
+    scatter = ax.scatter(
+        x[mask_normais],
+        y[mask_normais],
+        z[mask_normais],
+        c=labels[mask_normais],
+        cmap='tab10',
+        s=10,
+        alpha=0.6,
+    )
 
+    # Plotar outliers a cinzento
+    ax.scatter(
+        x[mask_outliers],
+        y[mask_outliers],
+        z[mask_outliers],
+        color='gray',
+        s=15,           # podes aumentar um pouco o tamanho para destacar
+        alpha=0.8,
+        label='Outliers'
+    )
+
+
+    # Adicionar legenda automática (opcional)
+    legend = ax.legend(*scatter.legend_elements(), title="Clusters")
+    ax.add_artist(legend)
+
+    # Plotar os centroides a preto, com marcador diferente e maior
+    ax.scatter(centroids[:, 0], centroids[:, 1], centroids[:, 2],
+               c='black', s=200, marker='X', label='Centroides')
 
     # Rótulos dos eixos
     ax.set_xlabel('Eixo X')
     ax.set_ylabel('Eixo Y')
     ax.set_zlabel('Eixo Z')
 
+    # Mostrar legenda
+    ax.legend()
+
     plt.show()
+
+def calculate_outliers_centroids(distances, k, labels):
+
+    # Retira o valor minimo de cada linha de distances e mantém no formato 2d ou seja (n_amostras, 1) com o keepdims
+    distance_from_centroid = np.min(distances, axis=1, keepdims=True) 
+
+    # 1 se maior que y, 0 caso contrário
+    sinalizacao = (distance_from_centroid > limit).astype(int)
+
+    outliers = np.hstack([distance_from_centroid, sinalizacao])
+    print(outliers)
+
+    n_outliers = np.sum(outliers[:, 1] == 1)
+
+    return n_outliers, outliers
+
+def calculate_outliers_by_centroids(distances, k, labels):
+
+    # Distância de cada ponto ao seu centróide
+    distance_from_centroid = np.min(distances, axis=1, keepdims=True)
+
+    # Inicializa o array de sinalização
+    sinalizacao = np.zeros_like(distance_from_centroid, dtype=int)
+
+    # Calcula limites por centróide
+    for c in np.unique(labels):
+        # Distâncias dos pontos do centróide c
+        mask = labels == c #cria uma mascara booleana para sinalizar a true todos os pontos do centroid c
+        dist_c = distance_from_centroid[mask] #faz um array só com as distancias dos pontos daquele centroid àquele centroid
+
+        # Média e desvio padrão
+        mean_c = np.mean(dist_c)
+        std_c = np.std(dist_c)
+
+        # Limite para considerar outlier (média + k * std)
+        limit_c = mean_c + k * std_c
+
+        # Marca como outlier (1) se maior que limite
+        sinalizacao[mask] = (dist_c > limit_c).astype(int)
+
+    # Junta distância + flag
+    outliers = np.hstack([distance_from_centroid, sinalizacao])
+
+    # Conta número total de outliers
+    n_outliers = np.sum(sinalizacao)
+
+    return n_outliers, outliers
+
+#EX 3.8
+def inject_outliers(data, k, percentage, z):
+    data = np.array(data, dtype=float)
+    mean = np.mean(data)
+    std_dev = np.std(data)
+
+    lower_bound = mean - k * std_dev
+    upper_bound = mean + k * std_dev
+
+    # Identificar outliers atuais
+    outlier_mask = (data < lower_bound) | (data > upper_bound)
+    current_outliers = np.sum(outlier_mask)
+    total = len(data)
+    current_density = current_outliers / total * 100
+
+    # Se já há outliers suficientes → termina
+    if current_density >= percentage:
+        return data, current_outliers
+
+    # Caso contrário, injetar novos outliers
+    target_outliers = int(percentage * total)
+    n_to_inject = target_outliers - current_outliers
+
+    # Escolher índices aleatórios que não sejam já outliers
+    candidate_indices = np.where(~outlier_mask)[0]
+    np.random.shuffle(candidate_indices)
+    inject_indices = candidate_indices[:n_to_inject]
+
+    # s ∈ {-1, +1}
+    s = np.random.choice([-1, 1], size=n_to_inject)
+
+    # q ∈ [0, z)
+    q = np.random.uniform(0, z, size=n_to_inject)
+
+    # Aplicar fórmula: μ + s × k × (σ + q)
+    new_values = mean + s * k * (std_dev + q)
+
+    # Injetar os novos valores
+    data[inject_indices] = new_values
+
+    return data, target_outliers
+
+# EX3.9
+def linear_model(X, y):
+    # Adicionar a coluna de 1s para o intercepto (β0)
+    X = np.column_stack((np.ones(X.shape[0]), X))
+
+    # Calcular betas com a fórmula (XᵀX)⁻¹ Xᵀ y
+    beta = np.linalg.pinv(X) @ y
+    print(beta)
+
+    return beta
+
+#EX3.9
+def linear_model_predict(X, beta):
+    #preve o y pelo modelo linear
+    y_pred = X @ beta
+    print(y_pred)
+
+    return y_pred
+
+
+def generate_windows(data, p):
+    x = []
+    y = []
+    for i in range (len(data)):
+        x.append(data[i:i+p,:])
+        y.append(data[p+i])
+    final_x = np.vstack(x)
+    final_y = np.vstack(y)
+
+    return final_x, final_y
+
 
 
 def main():
@@ -305,13 +454,33 @@ def main():
     #ex_3_4(k)
 
     # EX 3.6
-    centroids, labels = kmeans(individuals[0][0][:, 1:4], 3, 100, 1e-4, 40)
-    print(individuals[0][0][:, 1:4].shape)
+    #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
+    #print(individuals[0][0][:, 1:4].shape)
 
-    print(centroids)
-    print(labels)
+    
+    #print(centroids)
+    #print(labels)
+    #print(distances)
 
-    graph_3d(centroids)
+    #EX3.7
+    #n_outliers, outliers = calculate_outliers_by_centroids(distances, 3, labels)
+
+    #print(n_outliers)
+
+    #EX3.7
+    #graph_3d(centroids, individuals[0][0][:, 1:4], labels, outliers)
+
+
+    #EX3.10
+    all_sensors_list = create_list_by_sensor()
+
+    all_data_in_one_array = np.vstack(all_sensors_list)
+
+    modules_acceleration = calculateModule(all_data_in_one_array, 1, 4)
+
+    x, y = generate_windows(modules_acceleration, 5)
+
+    linear_model(x, y)
     
 
 
