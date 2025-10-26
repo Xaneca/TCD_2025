@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from scipy import stats
 
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
 PLOT_PATH = "./plots"
@@ -29,7 +30,7 @@ def getIndividual(path, ind_num):
     for j in range(NUM_SENSORS):
         df = pd.read_csv(f'{path}/part{ind_num}/part{ind_num}dev{j + 1}.csv')
         ind.append(df.to_numpy())
-
+    print("Individuals Extracted")
     return ind
 
 # def calculateModule(ind, sensor_num, i_x, i_z):
@@ -42,7 +43,7 @@ def calculateModule(ind_sensor, i_x, i_z):
     # idx - 1,2,3 - accelerometer
     # idx - 4,5,6 - gyroscope
     # idx - 7,8,9 - magnetometer
-    return np.sqrt(np.sum(ind_sensor[:, i_x:i_z]**2, axis=1))   # axis = 1 -> por linha
+    return np.sqrt(np.sum(ind_sensor[:, i_x:i_z + 1]**2, axis=1))   # axis = 1 -> por linha
 
 def boxPlot_modules(plot = True):
     outliers = []
@@ -175,6 +176,8 @@ def create_list_by_sensor():
         sensors_data.append(all_the_data) 
     return sensors_data
 
+def density(num_outliers, num_points):
+    return num_outliers / num_points * 100
 
 def calculateDensityOutliers(num_outliers_per_activity):
     print("------- DENSITY ------")
@@ -183,7 +186,7 @@ def calculateDensityOutliers(num_outliers_per_activity):
         for v in range(3):
             print(f"  --------- Vector {titles_vectors[v]} ---------")
             for a in range(NUM_ACTIVITIES):
-                d = num_outliers_per_activity[s][v][a][0] / num_outliers_per_activity[s][v][a][1] * 100
+                d = density(num_outliers_per_activity[s][v][a][0], num_outliers_per_activity[s][v][a][1])
                 print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
     return
 
@@ -219,9 +222,10 @@ def show_outliers(start_idx, k, title):
         plt.show()
     return
 
-def show_outliers(start_idx, k, title):
+def show_outliers(start_idx, k, title, plot = True):
     sensors_list = create_list_by_sensor()
     for s in range(NUM_SENSORS):
+        print(f"\tSensor {titles_sensors[s]}")
         colors = []
         this_sensor = sensors_list[s]
         y = calculateModule(this_sensor, start_idx, start_idx + 2)
@@ -239,7 +243,7 @@ def show_outliers(start_idx, k, title):
                 outliers_mask[mask] = np.abs(z) > k  # marca só os dessa atividade
 
         colors.extend(np.where(outliers_mask, "red", "blue"))
-        print(colors[:50])
+        #print(colors[:50])
         plt.figure(figsize = (8,5))
         plt.scatter(x, y, c=colors, s=10, alpha=0.6)
         plt.xticks(range(1, NUM_ACTIVITIES + 1))
@@ -249,19 +253,24 @@ def show_outliers(start_idx, k, title):
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
-        plt.show()
+        if plot:
+            plt.show()
+        plt.close()
 
     return
 
-def ex_3_4(k):
+def ex_3_4(k, plot = True):
     # accelerometter:
-    show_outliers(1, k, titles_vectors[0])
+    print(f"Vector {titles_vectors[0]}:")
+    show_outliers(1, k, titles_vectors[0], plot)
 
     # gyroscope
-    show_outliers(4, k, titles_vectors[1])
+    print(f"Vector {titles_vectors[1]}:")
+    show_outliers(4, k, titles_vectors[1], plot)
 
     # mangetometer
-    show_outliers(7, k, titles_vectors[2])
+    print(f"Vector {titles_vectors[2]}:")
+    show_outliers(7, k, titles_vectors[2], plot)
 
     return
 
@@ -296,30 +305,49 @@ def kmeans(X, n_clusters=3, max_iters=100, tol=1e-4, random_state=None):
 
     return centroids, labels
 
+def ex_3_8(data):
+    calculateDensityOutliers(data)    
+
+def ex_4_1():
+    distribuiçoes = []
+    # normalidade das variaveis para cada atividade
+    for s in range(NUM_SENSORS):
+        sensor = sensors_data[s]
+        sensor[]
+
+    return
+
 def main():
     # EX 2
-    getFiles(PATH)                 # get all the individuals
+    getFiles(PATH)                  # get all the individuals
     ind = getIndividual(PATH, 0)    # get one individual
-    #print(individuals)
     #print(calculateModule(ind[0], 1, 3))
 
     # EX 3.1
 
-    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+    #num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
-    calculateDensityOutliers(num_outliers_per_sensor)
+    #calculateDensityOutliers(num_outliers_per_sensor)
 
     # EX 3.3
     # created: z_scores()
 
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
-    ex_3_4(k)
+    #ex_3_4(k, plot = False)
 
     # EX 3.6
+
+    # EX 3.8
+    #ex_3_8()
+
+    # EX 4.1
+    
+    create_list_by_sensor()
+    print(type(sensors_data))
 
 
     return
