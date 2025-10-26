@@ -3,7 +3,7 @@ import os
 
 # Caminho da pasta com as imagens
 folder_path = r"./plots/ex3_1" 
-# folder_path = r"./plots/ex3_4" 
+folder_path = r"./plots/ex3_4_k_4" 
 
 # Lista todos os arquivos de imagem da pasta
 im_paths = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]

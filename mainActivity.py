@@ -293,15 +293,15 @@ def show_outliers(start_idx, k, title, plot = True, save = False):
 def ex_3_4(k, plot = True, save = False):
     # accelerometter:
     print(f"Vector {titles_vectors[0]}:")
-    show_outliers(1, k, titles_vectors[0], plot)
+    show_outliers(1, k, titles_vectors[0], plot, save)
 
     # gyroscope
     print(f"Vector {titles_vectors[1]}:")
-    show_outliers(4, k, titles_vectors[1], plot)
+    show_outliers(4, k, titles_vectors[1], plot, save)
 
     # mangetometer
     print(f"Vector {titles_vectors[2]}:")
-    show_outliers(7, k, titles_vectors[2], plot)
+    show_outliers(7, k, titles_vectors[2], plot, save)
 
     return
 
@@ -764,21 +764,20 @@ def main():
     create_list_by_sensor()
 
     # EX 3.1
-
-    num_outliers_per_sensor = boxPlot_modules_3(plot = False, save = False)  #This is the right one
+    #num_outliers_per_sensor = boxPlot_modules_3(plot = False, save = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
-    calculateDensityOutliers(num_outliers_per_sensor)
+    #calculateDensityOutliers(num_outliers_per_sensor)
 
     # EX 3.3
     # created: z_scores()
 
     # EX 3.4
-    k = 3       # 3 ; 3.5 ; 4
+    k = 4       # 3 ; 3.5 ; 4
 
-    #ex_3_4(k, plot = False, save = False)
+    ex_3_4(k, plot = False, save = True)
 
     # EX 3.6
     #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
@@ -818,6 +817,9 @@ def main():
 
     # EX 4.1
     #ex_4_1()
+
+    # EX 4.3 - PCA
+    # 
 
     return
 
