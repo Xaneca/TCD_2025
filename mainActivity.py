@@ -235,11 +235,11 @@ def show_outliers(start_idx, k, title):
     return
 
 def show_outliers(start_idx, k, title, plot = True):
-    sensors_list = create_list_by_sensor()
+    # sensors_list = create_list_by_sensor()
     for s in range(NUM_SENSORS):
         print(f"\tSensor {titles_sensors[s]}")
         colors = []
-        this_sensor = sensors_list[s]
+        this_sensor = sensors_data[s]
         y = calculateModule(this_sensor, start_idx, start_idx + 2)
         x = this_sensor[:,-1]   # activity value
         outliers_mask = z_scores(y, k)
@@ -746,7 +746,7 @@ def main():
 
     # EX 3.1
 
-    #num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
@@ -759,7 +759,7 @@ def main():
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
 
-    #ex_3_4(k, plot = False)
+    ex_3_4(k, plot = False)
 
     # EX 3.6
     #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
@@ -798,7 +798,7 @@ def main():
     # errors = cross_validation(all_modules, p_values, 5)
 
     # EX 4.1
-    ex_4_1()
+    #ex_4_1()
 
     return
 
