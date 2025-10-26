@@ -45,9 +45,9 @@ def getIndividual(path, ind_num):
 #     return np.sqrt(np.sum(ind[sensor_num][:, i_x:i_z]**2, axis=1))   # axis = 1 -> por linha
 
 def calculateModule(ind_sensor, i_x, i_z):
-    # idx - 1,2,3 - accelerometer
-    # idx - 4,5,6 - gyroscope
-    # idx - 7,8,9 - magnetometer
+    # idx - 2,3,4  - accelerometer
+    # idx - 5,6,7  - gyroscope
+    # idx - 8,9,10 - magnetometer
     return np.sqrt(np.sum(ind_sensor[:, i_x:i_z + 1]**2, axis=1))   # axis = 1 -> por linha
 
 def boxPlot_modules(plot = True):
@@ -431,6 +431,7 @@ def inject_outliers(data, k, percentage, z):
     current_outliers = len(current_outlier_indices)
     total = len(data)
     current_density = current_outliers / total * 100
+    #density(current_outliers, total)   #############################################################
 
     # Se já há outliers suficientes → termina
     if current_density >= percentage:
@@ -486,8 +487,6 @@ def linear_model_2(X, y):
 def linear_model_predict_2(X, model):
     y_pred = model.predict(X)
     return y_pred
-
-
 
 #EX3.9
 def linear_model_predict(X, beta):
@@ -565,83 +564,7 @@ def removes_outliers_for_predictions(data, outlier_indices, y_prev):
         i += 1
     return data
 
-#EX3.11
-def generate_centered_windows(data, p):
-    if data.ndim == 1:
-        data = data.reshape(-1, 1)
-
-    half_p = p // 2
-    x, y = [], []
-
-    for i in range(half_p, len(data) - half_p):
-        # p/2 valores antes e p/2 depois
-        window = np.hstack((
-            data[i - half_p:i, :],
-            data[i + 1:i + half_p + 1, :]
-        ))
-        x.append(window)
-        y.append(data[i])
-
-    return np.vstack(x), np.vstack(y)
-
-
-
-
-def ex_3_8(data):
-    calculateDensityOutliers(data)    
-
-def ex_4_1():
-    distribuiçoes = []
-    # normalidade das variaveis para cada atividade
-    for s in range(NUM_SENSORS):
-        sensor = sensors_data[s]
-
-    return
-
-def main():
-    # EX 2
-    getFiles(PATH)                  # get all the individuals
-    ind = getIndividual(PATH, 0)    # get one individual
-    #print(calculateModule(ind[0], 1, 3))
-
-    # EX 3.1
-
-    #num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
-
-    #print(num_outliers_per_sensor)
-    
-    # EX 3.2 - analyse outliers
-    #calculateDensityOutliers(num_outliers_per_sensor)
-
-    # EX 3.3
-    # created: z_scores()
-
-    # EX 3.4
-    k = 3       # 3 ; 3.5 ; 4
-
-    #ex_3_4(k, plot = False)
-
-    # EX 3.6
-    #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
-    #print(individuals[0][0][:, 1:4].shape)
-
-    
-    #print(centroids)
-    #print(labels)
-    #print(distances)
-
-    #EX3.7
-    #n_outliers, outliers = calculate_outliers_by_centroids(distances, 3, labels)
-
-    #print(n_outliers)
-
-    #EX3.7
-    #graph_3d(centroids, individuals[0][0][:, 1:4], labels, outliers)
-
-    # EX 3.8
-    #inject_outliers()
-
-    #EX3.10
+def ex_3_10():
     create_list_by_sensor()
     create_list_complete()
 
@@ -671,10 +594,11 @@ def main():
     plt.title('Erro de previsão vs Tamanho da janela (p)')
     plt.grid(True)
     plt.show()
+    plt.savefig(PLOT_PATH + "/ex3_10" + f"/crossoverValidation.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
 
     # data, target_outliers, outlier_indices = inject_outliers(modules_acceleration, k, 10, 1)
 
-    # #Para esta iteração escolher o p que tiver menos erro no cross_validation
+    # # Para esta iteração escolher o p que tiver menos erro no cross_validation
     # x, y = generate_windows(modules_acceleration, 4)
     # beta = linear_model(x, y)
 
@@ -682,6 +606,110 @@ def main():
     # y_prev = linear_model_predict(x1, beta)
 
     # modules_acceleration_no_outliers = removes_outliers_for_predictions(modules_acceleration, outlier_indices, y_prev)
+    return
+
+#EX3.11
+def generate_centered_windows(data, p):
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
+
+    half_p = p // 2
+    x, y = [], []
+
+    for i in range(half_p, len(data) - half_p):
+        # p/2 valores antes e p/2 depois
+        window = np.hstack((
+            data[i - half_p:i, :],
+            data[i + 1:i + half_p + 1, :]
+        ))
+        x.append(window)
+        y.append(data[i])
+
+    return np.vstack(x), np.vstack(y)
+
+
+def ex_4_1():
+    acc = calculateModule(np.vstack(sensors_data), 2, 4)
+    gyr = calculateModule(np.vstack(sensors_data), 5, 7)
+    mag = calculateModule(np.vstack(sensors_data), 8, 10)
+
+    mean_acc = np.mean(acc)
+    std_acc = np.std(acc)
+    mean_gyr = np.mean(gyr)
+    std_gyr = np.std(gyr)
+    mean_mag = np.mean(mag)
+    std_mag = np.std(mag)
+
+    # normalidade das variaveis para cada atividade
+    print("Kolmogorov-Smirnov:")
+    r_acc = stats.kstest(acc, 'norm', args=(np.mean(acc), np.std(acc)))
+    r_gyr = stats.kstest(gyr, 'norm', args=(np.mean(gyr), np.std(gyr)))
+    r_mag = stats.kstest(mag, 'norm', args=(np.mean(mag), np.std(mag)))
+    print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
+
+    print("Shapiro")
+    r_acc = stats.shapiro(acc)
+    r_gyr = stats.shapiro(gyr)
+    r_mag = stats.shapiro(mag)
+    print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
+
+    print("Normal Test")
+    r_acc = stats.shapiro(acc)
+    r_gyr = stats.shapiro(gyr)
+    r_mag = stats.shapiro(mag)
+    print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
+
+    return
+
+def main():
+    # EX 2
+    getFiles(PATH)                  # get all the individuals
+    ind = getIndividual(PATH, 0)    # get one individual
+    #print(calculateModule(ind[0], 1, 3))
+
+    create_list_by_sensor()
+
+    # EX 3.1
+
+    #num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+
+    #print(num_outliers_per_sensor)
+    
+    # EX 3.2 - analyse outliers
+    #calculateDensityOutliers(num_outliers_per_sensor)
+
+    # EX 3.3
+    # created: z_scores()
+
+    # EX 3.4
+    k = 3       # 3 ; 3.5 ; 4
+
+    #ex_3_4(k, plot = False)
+
+    # EX 3.6
+    #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
+    #print(individuals[0][0][:, 1:4].shape)
+
+    
+    #print(centroids)
+    #print(labels)
+    #print(distances)
+
+    # EX 3.7
+    #n_outliers, outliers = calculate_outliers_by_centroids(distances, 3, labels)
+
+    #print(n_outliers)
+
+    # EX 3.7
+    #graph_3d(centroids, individuals[0][0][:, 1:4], labels, outliers)
+
+    # EX 3.8
+    #inject_outliers()
+
+    # EX 3.10
+    
+
+    # EX 3.11
 
     # modules_gyroscope = calculateModule(all_data_in_one_array, 4, 6)
     # modules_gyroscope = modules_gyroscope.reshape(-1, 1)
@@ -695,10 +723,7 @@ def main():
     # errors = cross_validation(all_modules, p_values, 5)
 
     # EX 4.1
-    
-    create_list_by_sensor()
-    print(type(sensors_data))
-
+    ex_4_1()
 
     return
 
