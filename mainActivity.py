@@ -627,26 +627,11 @@ def generate_centered_windows(data, p):
 
     return np.vstack(x), np.vstack(y)
 
+# EX 4.1
+def test_normality(acc, gyr, mag):
+        # normalidade das variaveis para cada atividade
 
-def ex_4_1():
-    acc = calculateModule(np.vstack(sensors_data), 2, 4)
-    gyr = calculateModule(np.vstack(sensors_data), 5, 7)
-    mag = calculateModule(np.vstack(sensors_data), 8, 10)
-
-    mean_acc = np.mean(acc)
-    std_acc = np.std(acc)
-    mean_gyr = np.mean(gyr)
-    std_gyr = np.std(gyr)
-    mean_mag = np.mean(mag)
-    std_mag = np.std(mag)
-
-    # normalidade das variaveis para cada atividade
-    print("Kolmogorov-Smirnov:")
-    r_acc = stats.kstest(acc, 'norm', args=(np.mean(acc), np.std(acc)))
-    r_gyr = stats.kstest(gyr, 'norm', args=(np.mean(gyr), np.std(gyr)))
-    r_mag = stats.kstest(mag, 'norm', args=(np.mean(mag), np.std(mag)))
-    print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
-
+    # usado para samples pequenas 
     print("Shapiro")
     r_acc = stats.shapiro(acc)
     r_gyr = stats.shapiro(gyr)
@@ -654,10 +639,100 @@ def ex_4_1():
     print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
 
     print("Normal Test")
-    r_acc = stats.shapiro(acc)
-    r_gyr = stats.shapiro(gyr)
-    r_mag = stats.shapiro(mag)
+    r_acc = stats.normaltest(acc)
+    r_gyr = stats.normaltest(gyr)
+    r_mag = stats.normaltest(mag)
     print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
+
+    print("Kolmogorov-Smirnov:")
+    r_acc = stats.kstest(acc, 'norm', args=(np.mean(acc), np.std(acc)))
+    r_gyr = stats.kstest(gyr, 'norm', args=(np.mean(gyr), np.std(gyr)))
+    r_mag = stats.kstest(mag, 'norm', args=(np.mean(mag), np.std(mag)))
+    print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
+
+    return r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue     # retorn p de kolmogorov-smirnov 
+
+def activities_ids():
+    new_list = []
+    for k in range (NUM_SENSORS):
+        for j in range(NUM_PEOPLE):
+            new_list.extend(individuals[j][k][:,-1])
+    return new_list
+
+def statisticalTest(module):
+
+    act_id = activities_ids()
+    # print(act_id[0])
+    # print(module[0])
+
+    atividades = []
+
+    act_id = np.array(activities_ids())
+    module = np.array(module)
+
+    # print(len(act_id))
+    # print(len(module)) # valor 3664563
+
+    for i in range(1, NUM_ACTIVITIES + 1):
+        #print("atividade", i)
+        atividade = module[act_id == i]
+        atividades.append(atividade)
+
+    # for i, a in enumerate(atividades):
+    #     print(f"Atividade {i + 1}: tamanho={len(a)}, média={np.mean(a) if len(a) > 0 else 'sem dados'}")
+
+
+    # H, p = stats.kruskal(atividades[0], atividades[1], atividades[2], atividades[3],
+    #                      atividades[4], atividades[5], atividades[6], atividades[7],
+    #                      atividades[8], atividades[9], atividades[10], atividades[11],
+    #                      atividades[12], atividades[13], atividades[14], atividades[15])
+
+    H, p = stats.kruskal(*atividades)
+
+    print(H, p)
+
+    return
+
+def statisticalTest_OnePerson(acc):
+    return
+
+def ex_4_1():
+    print("\n\tEXERCICIO 4.1\n")
+    acc = calculateModule(np.vstack(sensors_data), 2, 4)
+    gyr = calculateModule(np.vstack(sensors_data), 5, 7)
+    mag = calculateModule(np.vstack(sensors_data), 8, 10)
+
+    #print(len(acc))
+
+    p_acc, p_gyr, p_mag = test_normality(acc, gyr, mag)
+
+    p_values = [p_acc, p_gyr, p_mag]
+    modules = [acc, gyr, mag]
+    nomes = ["Acelerometro", "Giroscopio", "Magnetometro"]
+
+    # DADOS UNPAIRED porque juntamos todas as pessoas para avaliar as atividades
+    # se quiser comparar atividade com atividade sao 136 valores
+    # fisher e chi-square e McNemar sao para categoricos ❌
+    # Student's - distribuiçao normal ❌
+    # Analysis of variance - unpaired, normal ❌
+    # Wilcoxon’s - ordinal/continuous, nao precisa ser normal, paired e unpaired, 2 grupos ✅
+    # Kruskal-Wallis - tal como wilcoxon, para unpaired, mais q 2 grupos
+    # friedman - nao normal, +2 grupos, paired (varias atividades da mesma pessoa)
+    # ...
+
+    
+    for i in range(3):
+        print("\nKruskal-Wallis")
+        if p_values[i] < 0.05:
+            print(f"{nomes[i]} (H, p):")
+            statisticalTest(modules[i])
+        else:
+            # NESTE CASO CONCLUIMOS QUE OS PVALUES SAÕ < 0.05 -> logo não têm distribuiçao normal
+                # não precisamos fazer codigo para o caso de ter distribuiçao normal
+            pass
+    
+    #statisticalTest_OnePerson(acc)
+
 
     return
 
