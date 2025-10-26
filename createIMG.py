@@ -9,15 +9,10 @@ folder_path = r"./plots/ex3_1"
 im_paths = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
 
 # Organiza as imagens por tipo (ACC, GYR, MAG)
-# 3_1
-acc_images = sorted([f for f in im_paths if 'vector0' in f])
-gyr_images = sorted([f for f in im_paths if 'vector1' in f])
-mag_images = sorted([f for f in im_paths if 'vector2' in f])
-
 # 3_4
-# acc_images = sorted([f for f in im_paths if 'Accelerometer' in f])
-# gyr_images = sorted([f for f in im_paths if 'Gyroscope' in f])
-# mag_images = sorted([f for f in im_paths if 'Magnetometer' in f])
+acc_images = sorted([f for f in im_paths if 'Accelerometer' in f])
+gyr_images = sorted([f for f in im_paths if 'Gyroscope' in f])
+mag_images = sorted([f for f in im_paths if 'Magnetometer' in f])
 
 # Agora queremos **colunas = variáveis**, linhas = sensores
 columns = [acc_images, gyr_images, mag_images]
