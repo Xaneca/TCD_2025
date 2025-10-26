@@ -121,7 +121,7 @@ def boxPlot_modules_2(plot = True):
         plt.show()
 
 
-def boxPlot_modules_3(plot = True):
+def boxPlot_modules_3(plot = True, save = False):
     outliers = [] #Lista que vai receber o número de outliers de todos os sensores e atividades
 
     #Junta todos os arrays num só array 
@@ -162,7 +162,8 @@ def boxPlot_modules_3(plot = True):
             plt.xlabel("Activity")
             plt.ylabel(f"Value of the Vector Module {titles_vectors[i]}")
             plt.grid(True)
-            plt.savefig(PLOT_PATH + "/ex3_1" + f"/sensor{k}_vector{i}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+            if save:
+                plt.savefig(PLOT_PATH + "/ex3_1" + f"/sensor{k}_vector{i}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
 
             if plot:
                 plt.show()
@@ -202,6 +203,23 @@ def calculateDensityOutliers(num_outliers_per_activity):
                 print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
     return
 
+def calculateDensityOutliers(num_outliers_per_activity):
+    print("------- DENSITY (all sensors) ------")
+    for v in range(3):  # 0=ACC,1=GYR,2=MAG
+        print(f"--------- Vector {titles_vectors[v]} ---------")
+        for a in range(NUM_ACTIVITIES):
+            total_numerator = 0
+            total_denominator = 0
+            for s in range(NUM_SENSORS):
+                numerator = num_outliers_per_activity[s][v][a][0]
+                denominator = num_outliers_per_activity[s][v][a][1]
+                total_numerator += numerator
+                total_denominator += denominator
+
+            d = density(total_numerator, total_denominator)
+            print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
+    return
+
 def z_scores(data, k):
     mean = np.mean(data)
     std_dev = np.std(data)
@@ -234,7 +252,7 @@ def show_outliers(start_idx, k, title):
         plt.show()
     return
 
-def show_outliers(start_idx, k, title, plot = True):
+def show_outliers(start_idx, k, title, plot = True, save = False):
     # sensors_list = create_list_by_sensor()
     for s in range(NUM_SENSORS):
         print(f"\tSensor {titles_sensors[s]}")
@@ -264,14 +282,15 @@ def show_outliers(start_idx, k, title, plot = True):
         plt.ylabel(f"Value of the Vector Module {title}")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
-        plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+        if save:
+            plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
         if plot:
             plt.show()
         plt.close()
 
     return
 
-def ex_3_4(k, plot = True):
+def ex_3_4(k, plot = True, save = False):
     # accelerometter:
     print(f"Vector {titles_vectors[0]}:")
     show_outliers(1, k, titles_vectors[0], plot)
@@ -746,12 +765,12 @@ def main():
 
     # EX 3.1
 
-    num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+    num_outliers_per_sensor = boxPlot_modules_3(plot = False, save = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
     # EX 3.2 - analyse outliers
-    #calculateDensityOutliers(num_outliers_per_sensor)
+    calculateDensityOutliers(num_outliers_per_sensor)
 
     # EX 3.3
     # created: z_scores()
@@ -759,7 +778,7 @@ def main():
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
 
-    ex_3_4(k, plot = False)
+    #ex_3_4(k, plot = False, save = False)
 
     # EX 3.6
     #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
