@@ -5,6 +5,7 @@ from scipy import stats
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import pairwise_distances
 from scipy.stats import skew, kurtosis, iqr, pearsonr
 from numpy.fft import fft, fftfreq
 from features import extract_feature_vector
@@ -1262,6 +1263,82 @@ def ex_4_2():
     # print(all_features_list_norm[0][:20])
     return all_features_list_norm
 
+
+#EX4.4----------------------------------------------------------------------------------
+
+def fisher_score(X, y):
+    """
+    Calcula Fisher Score para cada feature.
+    
+    X: array (n_samples, n_features) - features normalizadas
+    y: array (n_samples,) - labels/classes
+    
+    Retorna:
+    scores: array (n_features,) - Fisher Score de cada feature
+    """
+    classes = np.unique(y)
+    n_samples, n_features = X.shape
+    scores = np.zeros(n_features)
+
+    for f in range(n_features):
+        numerator = 0.0
+        denominator = 0.0
+        mu_f = np.mean(X[:, f])
+
+        for c in classes:
+            X_c = X[y == c, f]
+            n_c = len(X_c)
+            mu_fc = np.mean(X_c)
+            sigma_fc2 = np.var(X_c, ddof=1)
+            
+            numerator += n_c * (mu_fc - mu_f)**2
+            denominator += n_c * sigma_fc2
+        
+        # Evitar divisão por zero
+        scores[f] = numerator / (denominator + 1e-8)
+    
+    return scores
+
+def reliefF(X, y, k=10):
+    """
+    ReliefF para seleção de features.
+    
+    X: array (n_samples, n_features)
+    y: array (n_samples,)
+    k: número de vizinhos mais próximos
+    
+    Retorna:
+    scores: array (n_features,) - relevância de cada feature
+    """
+    n_samples, n_features = X.shape
+    scores = np.zeros(n_features)
+    
+    # Distâncias entre todas as amostras
+    D = pairwise_distances(X, metric='euclidean')
+    
+    for i in range(n_samples):
+        Xi = X[i]
+        yi = y[i]
+        
+        # índices dos vizinhos (excluindo a própria amostra)
+        sorted_idx = np.argsort(D[i])
+        sorted_idx = sorted_idx[sorted_idx != i]
+        
+        # vizinhos da mesma classe (hits) e de outras classes (misses)
+        hits = [j for j in sorted_idx if y[j] == yi][:k]
+        misses = [j for j in sorted_idx if y[j] != yi][:k]
+        
+        # atualizar score para cada feature
+        for f in range(n_features):
+            diff_hit = np.mean([abs(Xi[f] - X[j, f]) for j in hits])
+            diff_miss = np.mean([abs(Xi[f] - X[j, f]) for j in misses])
+            
+            scores[f] += diff_miss - diff_hit
+    
+    # normalizar scores
+    scores /= n_samples
+    return scores
+
 def main():
     # EX 2
     getFiles(PATH)                  # get all the individuals
@@ -1345,6 +1422,16 @@ def main():
         PCA(all_features_list_norm[i], i)
 
     # EX 4.4
+    scores_fs = fisher_score(all_features_list_norm[0], sensors_data[0][:, -1])
+
+    # Ordenar features
+    idx_fs = np.argsort(scores_fs)[::-1]
+    print("Top 10 features por Fisher Score:", idx_fs[:10])
+
+    scores_relief = reliefF(all_features_list_norm[0], sensors_data[0][:, -1], k=10)
+    idx_relief = np.argsort(scores_relief)[::-1]
+    print("Top 10 features por ReliefF:", idx_relief[:10])
+
 
     return
 
