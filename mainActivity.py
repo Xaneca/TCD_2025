@@ -50,6 +50,17 @@ def calculateModule(ind_sensor, i_x, i_z):
     # idx - 8,9,10 - magnetometer
     return np.sqrt(np.sum(ind_sensor[:, i_x:i_z + 1]**2, axis=1))   # axis = 1 -> por linha
 
+def all_modules():
+    s = np.vstack(sensors_data)
+    modules = []
+    acc = np.vstack(np.sqrt(np.sum(s[:, 1:4 + 1]**2, axis=1)))
+    gyr = np.vstack(np.sqrt(np.sum(s[:, 4:7 + 1]**2, axis=1)))
+    mag = np.vstack(np.sqrt(np.sum(s[:, 7:10 + 1]**2, axis=1)))
+
+    all_mod = np.concatenate((acc, gyr, mag), axis = 1)
+
+    return all_mod
+
 def boxPlot_modules(plot = True):
     outliers = []
     for activity in range(1, NUM_ACTIVITIES + 1):
@@ -305,6 +316,8 @@ def ex_3_4(k, plot = True, save = False):
 
     return
 
+# EX 3.6
+
 #Input da função (dados em nparry, number of clusters, maximo de iterações, limite, )
 def kmeans(X, n_clusters, max_iters, tol, random_state=None):
     # Configura semente aleatória
@@ -336,14 +349,14 @@ def kmeans(X, n_clusters, max_iters, tol, random_state=None):
 
     return centroids, labels, distances
 
-def graph_3d(centroids, data, labels, outliers):
+def graph_3d(centroids, data, labels, outliers, vec = "Default", sensor = "6", plot = True):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
     # Extrair coordenadas dos dados
     x, y, z = data[:, 0], data[:, 1], data[:, 2]
 
-   # Máscaras
+    # Máscaras
     mask_outliers = outliers[:, 1] == 1
     mask_normais  = outliers[:, 1] == 0
 
@@ -386,8 +399,11 @@ def graph_3d(centroids, data, labels, outliers):
     # Mostrar legenda
     ax.legend()
 
-    plt.show()
-
+    if plot:
+        plt.show()
+    plt.savefig(PLOT_PATH + "/ex3_7" + f"/kmeans_{vec}_{sensor}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+    plt.close()
+    
 def calculate_outliers_centroids(distances, k, labels):
 
     # Retira o valor minimo de cada linha de distances e mantém no formato 2d ou seja (n_amostras, 1) com o keepdims
@@ -433,7 +449,42 @@ def calculate_outliers_by_centroids(distances, k, labels):
     # Conta número total de outliers
     n_outliers = np.sum(sinalizacao)
 
-    return n_outliers, outliers
+    return n_outliers, outliers, distances.shape[0] # pontos totais
+
+def ex_3_7(vec, ind_start, plot = True):
+    # before
+    # all_mod = all_modules()
+    # centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
+    # centroids, labels, distances = kmeans(all_mod, 16, 100, 1e-4, 40)
+    # print(individuals[0][0][:, 1:4].shape)
+    #print(centroids)
+    #print(labels)
+    #print(distances)
+
+    # EX 3.7
+    # n_outliers, outliers = calculate_outliers_by_centroids(distances, 3, labels)
+
+    #print(n_outliers)
+
+    # EX 3.7
+    # graph_3d(centroids, individuals[0][0][:, 1:4], labels, outliers)
+    # graph_3d(centroids, all_mod, labels, outliers)
+
+    ####################################################3
+
+    list_density = []
+
+    # vetor
+    print("Vector: ", vec)
+    for i in range(NUM_SENSORS):
+        centroids, labels, distances = kmeans(sensors_data[i][:, ind_start:ind_start+3], 16, 100, 1e-4, 40)
+        n_outliers, outliers, n_total = calculate_outliers_by_centroids(distances, 3, labels)
+        list_density.append(n_outliers/n_total*100)
+        print("sensor", i, n_outliers/n_total*100, "%")
+        graph_3d(centroids, sensors_data[i][:, ind_start:ind_start+3], labels, outliers, vec, i, plot)
+    
+    return list_density
+
 
 #EX 3.8
 def inject_outliers(data, k, percentage, z):
@@ -717,9 +768,9 @@ def statisticalTest_OnePerson(acc):
 
 def ex_4_1():
     print("\n\tEXERCICIO 4.1\n")
-    acc = calculateModule(np.vstack(sensors_data), 2, 4)
-    gyr = calculateModule(np.vstack(sensors_data), 5, 7)
-    mag = calculateModule(np.vstack(sensors_data), 8, 10)
+    acc = calculateModule(np.vstack(sensors_data), 1, 3)
+    gyr = calculateModule(np.vstack(sensors_data), 4, 6)
+    mag = calculateModule(np.vstack(sensors_data), 7, 9)
 
     #print(len(acc))
 
@@ -752,8 +803,49 @@ def ex_4_1():
     
     #statisticalTest_OnePerson(acc)
 
-
     return
+
+def PCA(X):
+    # First center data
+    X_mean = np.mean(X, axis=0)
+    X_centered = X - X_mean
+
+    # Matriz covariancia - mede a variação conjunta entre as features
+    cov_matrix = np.cov(X_centered, rowvar=False)
+
+    # Autovalores e autovetores
+    # Autovetores → direções principais (componentes)
+    # Autovalores → variância explicada em cada direção
+    eig_vals, eig_vecs = np.linalg.eigh(cov_matrix)
+
+    # Ordenar por variância decrescente
+    idx = np.argsort(eig_vals)[::-1] 
+    eig_vals = eig_vals[idx]
+    eig_vecs = eig_vecs[:, idx]
+
+    # Calcular variância explicada (%)
+    explained_variance_ratio = eig_vals / np.sum(eig_vals)
+    print("Variância explicada por componente:")
+    var_acumulada = np.cumsum(explained_variance_ratio)
+
+    num_comp = np.argmax(var_acumulada >= 0.75) + 1
+    print(f"Para explicar 75% da variância, são necessárias {num_comp} features.")
+
+    # Projetar os dados nos componentes principais
+    # (isto gera os novos eixos principais)
+    X_pca = np.dot(X_centered, eig_vecs[:, :num_comp])
+
+    # exemplo = X_pca[0]  # por ex., a primeira janela
+    # print(f"Features comprimidas (instante 0):\n{exemplo}")
+
+    # Gráfico 2D
+    plt.figure(figsize=(8, 6))
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.7, color='teal')
+    plt.title("Projeção PCA (Componentes 1 e 2)")
+    plt.xlabel("Componente Principal 1")
+    plt.ylabel("Componente Principal 2")
+    plt.grid(True)
+    plt.show()
 
 def main():
     # EX 2
@@ -777,24 +869,27 @@ def main():
     # EX 3.4
     k = 4       # 3 ; 3.5 ; 4
 
-    ex_3_4(k, plot = False, save = True)
+    #ex_3_4(k, plot = False, save = True)
 
-    # EX 3.6
-    #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
-    #print(individuals[0][0][:, 1:4].shape)
+    # EX 3.6 e 3.7 ----------------------------------
+    list_density_1 = ex_3_7("Accelerometer", 1, False)
+    list_density_2 = ex_3_7("Gyroscope", 4, False)
+    list_density_3 = ex_3_7("Magnetometer", 7, False)
 
-    
-    #print(centroids)
-    #print(labels)
-    #print(distances)
+    heatmap_data = np.array([list_density_1, list_density_2, list_density_3]).T
 
-    # EX 3.7
-    #n_outliers, outliers = calculate_outliers_by_centroids(distances, 3, labels)
+    plt.imshow(heatmap_data, cmap='YlOrRd_r', aspect='auto')
+    plt.colorbar(label='Density')
+    plt.title('Outlier Density Heatmap')
+    plt.xlabel('Vector')
+    plt.ylabel('Sensor')
 
-    #print(n_outliers)
-
-    # EX 3.7
-    #graph_3d(centroids, individuals[0][0][:, 1:4], labels, outliers)
+    # opcional: mostrar rótulos nos eixos
+    plt.xticks(ticks=range(3), labels=['Accelerometer', 'Gyroscope', 'Magnetometer'])
+    plt.yticks(ticks=range(5), labels=[f'Sensor {i+1}' for i in range(5)])
+    plt.savefig(PLOT_PATH + "/ex3_7" + f"/kmeans_heatmap.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+    plt.show()
+    # -----------------------------------------------
 
     # EX 3.8
     #inject_outliers()
@@ -819,7 +914,18 @@ def main():
     #ex_4_1()
 
     # EX 4.3 - PCA
-    # 
+
+    np.random.seed(42)
+    n_amostras = 100   # número de linhas
+    n_features = 110   # número de colunas (features)
+
+    # gera clusters artificiais com algum padrão
+    X1 = np.random.normal(loc=0, scale=1, size=(n_amostras//3, n_features))
+    X2 = np.random.normal(loc=5, scale=1, size=(n_amostras//3, n_features))
+    X3 = np.random.normal(loc=-5, scale=1, size=(n_amostras//3, n_features))
+    X = np.vstack((X1, X2, X3))
+
+    PCA(X)
 
     return
 
