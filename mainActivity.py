@@ -5,6 +5,11 @@ from scipy import stats
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LinearRegression
+from scipy.stats import skew, kurtosis, iqr, pearsonr
+from numpy.fft import fft, fftfreq
+from features import extract_feature_vector
+
+
 
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
 PLOT_PATH = "./plots"
@@ -15,6 +20,14 @@ NUM_PEOPLE = 15
 NUM_SENSORS = 5
 NUM_ACTIVITIES = 16
 NUM_COLUNAS = 12
+FS = 51.2
+
+#EX 4.2
+SAMPLING_RATE = 100  # Hz [6]
+WINDOW_LENGTH = 200  # 2 segundos * 100 Hz [5]
+GRAVITY_G_UNITS = 1.0  # Aproximando a gravidade como 1g (assumindo que os dados de aceleração são em unidades de 'g')
+
+
 individuals = []    # tam 15 -> tam 5 -> tam 12 + data
                     # (15, 5, 12)
 sensors_data = []
@@ -369,7 +382,7 @@ def graph_3d(centroids, data, labels, outliers):
 
     plt.show()
 
-def calculate_outliers_centroids(distances, k, labels):
+def calculate_outliers_centroids(distances, k, labels, limit):
 
     # Retira o valor minimo de cada linha de distances e mantém no formato 2d ou seja (n_amostras, 1) com o keepdims
     distance_from_centroid = np.min(distances, axis=1, keepdims=True) 
@@ -438,31 +451,102 @@ def inject_outliers(data, k, percentage, z):
         return data, current_outliers, current_outlier_indices
 
     # Caso contrário, injetar novos outliers
-    target_outliers = int(percentage * total)
+    target_outliers = int(percentage/100 * total)
+    print(current_outliers)
+    print(target_outliers)
     n_to_inject = target_outliers - current_outliers
+    print(n_to_inject)
 
     # Escolher índices aleatórios que não sejam já outliers
     candidate_indices = np.where(~outlier_mask)[0]
+    candidate_indices = candidate_indices[candidate_indices >= 100]
     np.random.shuffle(candidate_indices)
     inject_indices = candidate_indices[:n_to_inject]
+    print(inject_indices)
 
     # s ∈ {-1, +1}
     s = np.random.choice([-1, 1], size=n_to_inject)
+    print(s.shape)
 
     # q ∈ [0, z)
     q = np.random.uniform(0, z, size=n_to_inject)
+    print(q.shape)
 
     # Aplicar fórmula: μ + s × k × (σ + q)
     new_values = mean + s * k * (std_dev + q)
+    print(new_values.shape)
 
     # Injetar os novos valores
-    data[inject_indices] = new_values
+    new_values_1d = new_values.ravel()
+    data[inject_indices] = new_values_1d.reshape(-1, 1)
+    print(data[inject_indices].shape)
 
     all_outlier_indices = np.sort(
         np.concatenate((current_outlier_indices, inject_indices))
     )
 
     return data, target_outliers, all_outlier_indices
+
+def inject_outliers_centered(data, k, percentage, z):
+    original_data = data
+    data = np.array(data[:, 0], dtype=float)
+    mean = np.mean(data)
+    std_dev = np.std(data)
+
+    lower_bound = mean - k * std_dev
+    upper_bound = mean + k * std_dev
+
+    # Identificar outliers atuais
+    outlier_mask = (data < lower_bound) | (data > upper_bound)
+    current_outlier_indices = np.where(outlier_mask)[0]
+    current_outliers = len(current_outlier_indices)
+    total = len(data)
+    current_density = current_outliers / total * 100
+    #density(current_outliers, total)   #############################################################
+
+    # Se já há outliers suficientes → termina
+    if current_density >= percentage:
+        return data, current_outliers, current_outlier_indices
+
+    # Caso contrário, injetar novos outliers
+    target_outliers = int(percentage/100 * total)
+    print(current_outliers)
+    print(target_outliers)
+    n_to_inject = target_outliers - current_outliers
+    print(n_to_inject)
+
+    # Escolher índices aleatórios que não sejam já outliers
+    candidate_indices = np.where(~outlier_mask)[0]
+    size = data.shape[0]
+    candidate_indices = candidate_indices[(candidate_indices >= 50) & (candidate_indices < size - 50)]
+    np.random.shuffle(candidate_indices)
+    inject_indices = candidate_indices[:n_to_inject]
+    print(inject_indices)
+
+    # s ∈ {-1, +1}
+    s = np.random.choice([-1, 1], size=n_to_inject)
+    print(s.shape)
+
+    # q ∈ [0, z)
+    q = np.random.uniform(0, z, size=n_to_inject)
+    print(q.shape)
+
+    # Aplicar fórmula: μ + s × k × (σ + q)
+    new_values = mean + s * k * (std_dev + q)
+    print(new_values.shape)
+
+    # Injetar os novos valores
+    new_values_1d = new_values.ravel()
+    data[inject_indices] = new_values_1d
+    print(data[inject_indices].shape)
+
+    all_outlier_indices = np.sort(
+        np.concatenate((current_outlier_indices, inject_indices))
+    )
+
+    original_data[:, 0] = data
+
+    return original_data, target_outliers, all_outlier_indices
 
 # EX3.9
 def linear_model(X, y):
@@ -539,17 +623,41 @@ def cross_validation(data, p_values, n_splits=5):
 
     return errors
 
+def cross_validation_3_11(data, p_values, n_splits=5):
+    errors = []
+
+    for p in p_values:
+        X, y = generate_centered_windows(data, p)
+        kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+        fold_errors = []
+        for train_idx, test_idx in kf.split(X):
+            X_train, X_test = X[train_idx], X[test_idx]
+            y_train, y_test = y[train_idx], y[test_idx]
+
+            beta = linear_model(X_train, y_train)
+            y_pred = linear_model_predict(X_test, beta)
+
+            mse = mean_squared_error(y_test, y_pred)
+            fold_errors.append(mse)
+
+        mean_error = np.mean(fold_errors)
+        errors.append(mean_error)
+        print(f"p = {p}, erro médio = {mean_error:.4f}")
+
+    return errors
+
 def generate_windows_outliers(data, outliers_indexes, p):
     # Garantir que data tem 2 dimensões
     if data.ndim == 1:
         data = data.reshape(-1, 1)
 
     x, y = [], []
-    for index in range(outliers_indexes):
+    for index in outliers_indexes:
         # Janela de entrada
-        x.append(np.hstack(data[index:index+p, :]))  # usa p valores consecutivos
+        x.append(data[index-p:index, :].flatten())  # usa p valores consecutivos
         # Valor a prever (seguinte)
-        y.append(data[index+p, :])
+        y.append(data[index, :])
 
     #print(x)
     #print(y)
@@ -564,28 +672,137 @@ def removes_outliers_for_predictions(data, outlier_indices, y_prev):
         i += 1
     return data
 
-def ex_3_10():
-    create_list_by_sensor()
-    create_list_complete()
+def removes_outliers_for_predictions_2(data, outlier_indices, y_prev):
+    data[outlier_indices] = y_prev
+    return data, y_prev
 
-    all_data_in_one_array = np.vstack(people_data)
+def plot_outlier_replacement(data, outlier_indices, y_prev):
+    # Garantir que os dados são arrays NumPy
+    data = np.array(data)
+    y_prev = np.array(y_prev)
+    outlier_indices = np.array(outlier_indices)
 
-    modules_acceleration = calculateModule(all_data_in_one_array, 1, 3)
+    # ===== Gráfico 1: Outliers =====
+    plt.figure(figsize=(10, 5))
+    plt.scatter(outlier_indices, data[outlier_indices],
+                color='red', label="Outliers", s=5, zorder=3)
+    plt.title("Outliers no Sinal")
+    plt.xlabel("Índice")
+    plt.ylabel("Valor")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # ===== Gráfico 2: Valores Substituídos =====
+    plt.figure(figsize=(10, 5))
+    plt.scatter(outlier_indices, y_prev,
+                color='yellow', label="Valores previstos (y_prev)", s=5, marker='o', zorder=3)
+    plt.title("Valores Substituídos (y_prev)")
+    plt.xlabel("Índice")
+    plt.ylabel("Valor")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # ===== Gráfico 3: Sinal Original =====
+    plt.figure(figsize=(10, 5))
+    plt.plot(data, label="Dados originais", color="blue", linewidth=1, zorder=3)
+    plt.title("Sinal Original Completo")
+    plt.xlabel("Índice")
+    plt.ylabel("Valor")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_outlier_replacement_3_11(data, y, outlier_indices, y_prev):
+    # Garantir que os dados são arrays NumPy
+    y = np.array(y)
+    print(y.shape)
+    y_prev = np.array(y_prev)
+    print(y_prev.shape)
+    outlier_indices = np.array(outlier_indices)
+    print(outlier_indices.shape)
+
+    # ===== Gráfico 1: Outliers =====
+    plt.figure(figsize=(10, 5))
+    plt.scatter(outlier_indices, y,
+                color='red', label="Outliers", s=5, zorder=3)
+    plt.title("Outliers no Sinal")
+    plt.xlabel("Índice")
+    plt.ylabel("Valor")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # ===== Gráfico 2: Valores Substituídos =====
+    plt.figure(figsize=(10, 5))
+    plt.scatter(outlier_indices, y_prev,
+                color='yellow', label="Valores previstos (y_prev)", s=5, marker='o', zorder=3)
+    plt.title("Valores Substituídos (y_prev)")
+    plt.xlabel("Índice")
+    plt.ylabel("Valor")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # ===== Gráfico 3: Sinal Original =====
+    plt.figure(figsize=(10, 5))
+    plt.plot(data[:, 0], label="Dados originais", color="blue", linewidth=1, zorder=3)
+    plt.title("Sinal Original Completo")
+    plt.xlabel("Índice")
+    plt.ylabel("Valor")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_outlier_replacement_together(data, outlier_indices, y_prev):
+    # Garantir que os dados são arrays NumPy
+    data = np.array(data)
+    y_prev = np.array(y_prev)
+    outlier_indices = np.array(outlier_indices)
+
+    # Plot do sinal original
+    plt.figure(figsize=(20, 10))
+
+    # Plot dos outliers
+    plt.scatter(outlier_indices, data[outlier_indices],
+                color='red', label="Outliers", s=60, zorder=3)
+
+    # Plot dos valores substitutos
+    plt.scatter(outlier_indices, y_prev,
+                color='yellow', label="Valores previstos (y_prev)", s=60, marker='x', zorder=4)
+
+    # Estética
+    plt.title("Comparação: Outliers vs Valores Substituídos")
+    plt.xlabel("Índice")
+    plt.ylabel("Valor")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def ex_3_10(modules_acceleration):
 
     '''
     t = np.linspace(0, 50, 1000)  # 1000 pontos entre 0 e 50
     data = np.sin(t) + 0.1 * np.random.randn(len(t))  # seno + ruído pequeno
     data = data.reshape(-1, 1)  # garantir formato (N, 1) #um teste para saber se o linear model estava correcto e está'''
 
-    x, y = generate_windows(modules_acceleration, 4)
+    p_values = range(1,101)
 
-    modules_acceleration = modules_acceleration.reshape(-1, 1)
+    #errors = cross_validation(modules_acceleration, p_values, 5)
 
-    print(x)
-
-    p_values = range(1,12)
-
-    errors = cross_validation(modules_acceleration, p_values, 5)
+    errors = np.array([
+    1.2311, 1.1998, 1.1992, 1.1976, 1.1971, 1.1913, 1.1809, 1.1745, 1.1714, 1.1698,
+    1.1686, 1.1676, 1.1670, 1.1664, 1.1660, 1.1659, 1.1659, 1.1659, 1.1659, 1.1659,
+    1.1659, 1.1658, 1.1656, 1.1653, 1.1649, 1.1645, 1.1640, 1.1633, 1.1622, 1.1608,
+    1.1592, 1.1574, 1.1559, 1.1549, 1.1542, 1.1536, 1.1531, 1.1526, 1.1519, 1.1513,
+    1.1508, 1.1502, 1.1499, 1.1497, 1.1495, 1.1494, 1.1494, 1.1494, 1.1494, 1.1493,
+    1.1493, 1.1492, 1.1492, 1.1489, 1.1487, 1.1486, 1.1481, 1.1473, 1.1462, 1.1452,
+    1.1447, 1.1440, 1.1431, 1.1417, 1.1402, 1.1390, 1.1381, 1.1370, 1.1363, 1.1357,
+    1.1353, 1.1348, 1.1338, 1.1329, 1.1319, 1.1309, 1.1298, 1.1290, 1.1280, 1.1270,
+    1.1260, 1.1251, 1.1244, 1.1239, 1.1232, 1.1227, 1.1223, 1.1218, 1.1214, 1.1209,
+    1.1205, 1.1203, 1.1201, 1.1199, 1.1197, 1.1196, 1.1195, 1.1194, 1.1194, 1.1193
+    ])
 
     plt.figure(figsize=(8,5))
     plt.plot(p_values, errors, marker='o')
@@ -596,16 +813,22 @@ def ex_3_10():
     plt.show()
     plt.savefig(PLOT_PATH + "/ex3_10" + f"/crossoverValidation.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
 
-    # data, target_outliers, outlier_indices = inject_outliers(modules_acceleration, k, 10, 1)
 
-    # # Para esta iteração escolher o p que tiver menos erro no cross_validation
-    # x, y = generate_windows(modules_acceleration, 4)
-    # beta = linear_model(x, y)
+    k = 2 #Valor normalmente usado para k
+    data, target_outliers, outlier_indices = inject_outliers(modules_acceleration, k, 10, 1)
 
-    # x1, y1 = generate_windows_outliers(modules_acceleration, outlier_indices, 4)
-    # y_prev = linear_model_predict(x1, beta)
+    # Para esta iteração escolher o p que tiver menos erro no cross_validation depois de rodar o código pelo gráfico e valores do erro médio decidiu-se usar o valor de p a 100
+    x, y = generate_windows(modules_acceleration, 100)
+    beta = linear_model(x, y)
 
-    # modules_acceleration_no_outliers = removes_outliers_for_predictions(modules_acceleration, outlier_indices, y_prev)
+    np.sort(outlier_indices)
+    x1, y1 = generate_windows_outliers(modules_acceleration, outlier_indices, 100)
+    y_prev = linear_model_predict(x1, beta)
+
+    modules_acceleration_no_outliers = removes_outliers_for_predictions(modules_acceleration, outlier_indices, y_prev)
+
+    plot_outlier_replacement(data, outlier_indices, y_prev)
+
     return
 
 #EX3.11
@@ -618,15 +841,71 @@ def generate_centered_windows(data, p):
 
     for i in range(half_p, len(data) - half_p):
         # p/2 valores antes e p/2 depois
-        window = np.hstack((
+        window = np.vstack((
             data[i - half_p:i, :],
             data[i + 1:i + half_p + 1, :]
         ))
+        window = np.hstack(window)
         x.append(window)
-        y.append(data[i])
+        y.append(data[i, 0])
 
     return np.vstack(x), np.vstack(y)
 
+def generate_centered_windows_outliers(data, outliers_indexes, p):
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
+
+    half_p = p // 2
+    x, y = [], []
+
+    for index in outliers_indexes:
+        # p/2 valores antes e p/2 depois
+        window = np.vstack((
+            data[index - half_p:index, :],
+            data[index + 1:index + half_p + 1, :]
+        ))
+        window = np.hstack(window)
+        x.append(window)
+        y.append(data[index, 0])
+
+    return np.vstack(x), np.vstack(y)
+
+def ex_3_11(all_modules):
+
+    p_values = range(10, 61, 10)
+
+    # errors = cross_validation_3_11(all_modules, p_values, 5)
+
+    errors = np.array([
+    0.6183, 0.6164, 0.6159, 0.6156, 0.6156, 0.6155
+    ])
+
+    plt.figure(figsize=(8,5))
+    plt.plot(p_values, errors, marker='o')
+    plt.xlabel('Valor de p')
+    plt.ylabel('Erro médio (MSE)')
+    plt.title('Erro de previsão vs Tamanho da janela (p)')
+    plt.grid(True)
+    plt.show()
+    plt.savefig(PLOT_PATH + "/ex3_10" + f"/crossoverValidation.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+
+
+    k = 2 #Valor normalmente usado para k
+    data, target_outliers, outlier_indices = inject_outliers_centered(all_modules, k, 10, 1)
+
+    # Para esta iteração escolher o p que tiver menos erro no cross_validation depois de rodar o código pelo gráfico e valores do erro médio decidiu-se usar o valor de p a 60
+    x, y = generate_centered_windows(all_modules, 60)
+    beta = linear_model(x, y)
+
+    np.sort(outlier_indices)
+    x1, y1 = generate_centered_windows_outliers(all_modules, outlier_indices, 60)
+    y_prev = linear_model_predict(x1, beta)
+
+    all_modules_no_outliers = removes_outliers_for_predictions(all_modules, outlier_indices, y_prev)
+
+    plot_outlier_replacement_3_11(data, y1, outlier_indices, y_prev)
+
+    return
 
 def ex_4_1():
     acc = calculateModule(np.vstack(sensors_data), 2, 4)
@@ -660,6 +939,33 @@ def ex_4_1():
     print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
 
     return
+
+
+#EX4.2 ____________________________________________________________________
+
+def extract_features_by_sensor(data, window_time, overlap):
+
+    # Tamanho da janela e do passo em amostras
+    window_size = int(window_time * FS)
+    step_size = int(window_size * (1 - overlap))
+
+    # Lista para armazenar as features de cada janela
+    feature_list = []
+
+    # Percorrer o sinal criando as janelas
+    for start in range(0, len(data) - window_size + 1, step_size):
+        end = start + window_size
+        window = data[start:end]
+
+        # Extrair features da janela (função fornecida pelo utilizador)
+        feats = extract_feature_vector(window)
+        feature_list.append(feats)
+
+    # Converter lista em matriz (n_janelas × n_features)
+    features_matrix = np.vstack(feature_list)
+
+    print("features shape (4.2):", features_matrix.shape)
+    return features_matrix
 
 def main():
     # EX 2
@@ -707,7 +1013,15 @@ def main():
     #inject_outliers()
 
     # EX 3.10
-    
+    # create_list_by_sensor()
+    # create_list_complete()
+
+    # all_data_in_one_array = np.vstack(people_data)
+
+    # modules_acceleration = calculateModule(all_data_in_one_array, 1, 3)
+    # modules_acceleration = modules_acceleration.reshape(-1, 1)
+
+    # ex_3_10(modules_acceleration)
 
     # EX 3.11
 
@@ -716,14 +1030,21 @@ def main():
     # modules_magnetometer = calculateModule(all_data_in_one_array, 7, 9)
     # modules_magnetometer = modules_magnetometer.reshape(-1, 1)
 
-    # all_modules = np.hstack(modules_acceleration, modules_gyroscope, modules_magnetometer)
+    # all_modules = np.hstack([modules_acceleration, modules_gyroscope, modules_magnetometer])
+    # print(all_modules.shape)
 
-    # #x, y = generate_centered_windows(all_modules, 4)
-
-    # errors = cross_validation(all_modules, p_values, 5)
+    # ex_3_11(all_modules)
 
     # EX 4.1
-    ex_4_1()
+    # ex_4_1()
+
+    # EX 4.2
+
+    all_features_list = []
+    for i in range(NUM_SENSORS):
+        matrix = extract_features_by_sensor(sensors_data[i], 2, 0.5)
+        all_features_list.append(matrix)
+
 
     return
 
