@@ -134,7 +134,7 @@ def boxPlot_modules_2(plot = True):
         plt.show()
 
 
-def boxPlot_modules_3(plot = True):
+def boxPlot_modules_3(plot = True, save = False):
     outliers = [] #Lista que vai receber o número de outliers de todos os sensores e atividades
 
     #Junta todos os arrays num só array 
@@ -175,7 +175,8 @@ def boxPlot_modules_3(plot = True):
             plt.xlabel("Activity")
             plt.ylabel(f"Value of the Vector Module {titles_vectors[i]}")
             plt.grid(True)
-            plt.savefig(PLOT_PATH + "/ex3_1" + f"/sensor{k}_vector{i}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+            if save:
+                plt.savefig(PLOT_PATH + "/ex3_1" + f"/sensor{k}_vector{i}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
 
             if plot:
                 plt.show()
@@ -215,6 +216,23 @@ def calculateDensityOutliers(num_outliers_per_activity):
                 print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
     return
 
+def calculateDensityOutliers(num_outliers_per_activity):
+    print("------- DENSITY (all sensors) ------")
+    for v in range(3):  # 0=ACC,1=GYR,2=MAG
+        print(f"--------- Vector {titles_vectors[v]} ---------")
+        for a in range(NUM_ACTIVITIES):
+            total_numerator = 0
+            total_denominator = 0
+            for s in range(NUM_SENSORS):
+                numerator = num_outliers_per_activity[s][v][a][0]
+                denominator = num_outliers_per_activity[s][v][a][1]
+                total_numerator += numerator
+                total_denominator += denominator
+
+            d = density(total_numerator, total_denominator)
+            print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
+    return
+
 def z_scores(data, k):
     mean = np.mean(data)
     std_dev = np.std(data)
@@ -247,12 +265,12 @@ def show_outliers(start_idx, k, title):
         plt.show()
     return
 
-def show_outliers(start_idx, k, title, plot = True):
-    sensors_list = create_list_by_sensor()
+def show_outliers(start_idx, k, title, plot = True, save = False):
+    # sensors_list = create_list_by_sensor()
     for s in range(NUM_SENSORS):
         print(f"\tSensor {titles_sensors[s]}")
         colors = []
-        this_sensor = sensors_list[s]
+        this_sensor = sensors_data[s]
         y = calculateModule(this_sensor, start_idx, start_idx + 2)
         x = this_sensor[:,-1]   # activity value
         outliers_mask = z_scores(y, k)
@@ -277,25 +295,26 @@ def show_outliers(start_idx, k, title, plot = True):
         plt.ylabel(f"Value of the Vector Module {title}")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
-        plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+        if save:
+            plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
         if plot:
             plt.show()
         plt.close()
 
     return
 
-def ex_3_4(k, plot = True):
+def ex_3_4(k, plot = True, save = False):
     # accelerometter:
     print(f"Vector {titles_vectors[0]}:")
-    show_outliers(1, k, titles_vectors[0], plot)
+    show_outliers(1, k, titles_vectors[0], plot, save)
 
     # gyroscope
     print(f"Vector {titles_vectors[1]}:")
-    show_outliers(4, k, titles_vectors[1], plot)
+    show_outliers(4, k, titles_vectors[1], plot, save)
 
     # mangetometer
     print(f"Vector {titles_vectors[2]}:")
-    show_outliers(7, k, titles_vectors[2], plot)
+    show_outliers(7, k, titles_vectors[2], plot, save)
 
     return
 
@@ -907,25 +926,12 @@ def ex_3_11(all_modules):
 
     return
 
-def ex_4_1():
-    acc = calculateModule(np.vstack(sensors_data), 2, 4)
-    gyr = calculateModule(np.vstack(sensors_data), 5, 7)
-    mag = calculateModule(np.vstack(sensors_data), 8, 10)
+# EX 4.1
+def test_normality(acc, gyr, mag):
+        # normalidade das variaveis para cada atividade
 
-    mean_acc = np.mean(acc)
-    std_acc = np.std(acc)
-    mean_gyr = np.mean(gyr)
-    std_gyr = np.std(gyr)
-    mean_mag = np.mean(mag)
-    std_mag = np.std(mag)
 
-    # normalidade das variaveis para cada atividade
-    print("Kolmogorov-Smirnov:")
-    r_acc = stats.kstest(acc, 'norm', args=(np.mean(acc), np.std(acc)))
-    r_gyr = stats.kstest(gyr, 'norm', args=(np.mean(gyr), np.std(gyr)))
-    r_mag = stats.kstest(mag, 'norm', args=(np.mean(mag), np.std(mag)))
-    print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
-
+    # usado para samples pequenas 
     print("Shapiro")
     r_acc = stats.shapiro(acc)
     r_gyr = stats.shapiro(gyr)
@@ -933,10 +939,100 @@ def ex_4_1():
     print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
 
     print("Normal Test")
-    r_acc = stats.shapiro(acc)
-    r_gyr = stats.shapiro(gyr)
-    r_mag = stats.shapiro(mag)
+    r_acc = stats.normaltest(acc)
+    r_gyr = stats.normaltest(gyr)
+    r_mag = stats.normaltest(mag)
     print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
+
+    print("Kolmogorov-Smirnov:")
+    r_acc = stats.kstest(acc, 'norm', args=(np.mean(acc), np.std(acc)))
+    r_gyr = stats.kstest(gyr, 'norm', args=(np.mean(gyr), np.std(gyr)))
+    r_mag = stats.kstest(mag, 'norm', args=(np.mean(mag), np.std(mag)))
+    print(r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue)
+
+    return r_acc.pvalue, r_gyr.pvalue, r_mag.pvalue     # retorn p de kolmogorov-smirnov 
+
+def activities_ids():
+    new_list = []
+    for k in range (NUM_SENSORS):
+        for j in range(NUM_PEOPLE):
+            new_list.extend(individuals[j][k][:,-1])
+    return new_list
+
+def statisticalTest(module):
+
+    act_id = activities_ids()
+    # print(act_id[0])
+    # print(module[0])
+
+    atividades = []
+
+    act_id = np.array(activities_ids())
+    module = np.array(module)
+
+    # print(len(act_id))
+    # print(len(module)) # valor 3664563
+
+    for i in range(1, NUM_ACTIVITIES + 1):
+        #print("atividade", i)
+        atividade = module[act_id == i]
+        atividades.append(atividade)
+
+    # for i, a in enumerate(atividades):
+    #     print(f"Atividade {i + 1}: tamanho={len(a)}, média={np.mean(a) if len(a) > 0 else 'sem dados'}")
+
+
+    # H, p = stats.kruskal(atividades[0], atividades[1], atividades[2], atividades[3],
+    #                      atividades[4], atividades[5], atividades[6], atividades[7],
+    #                      atividades[8], atividades[9], atividades[10], atividades[11],
+    #                      atividades[12], atividades[13], atividades[14], atividades[15])
+
+    H, p = stats.kruskal(*atividades)
+
+    print(H, p)
+
+    return
+
+def statisticalTest_OnePerson(acc):
+    return
+
+def ex_4_1():
+    print("\n\tEXERCICIO 4.1\n")
+    acc = calculateModule(np.vstack(sensors_data), 2, 4)
+    gyr = calculateModule(np.vstack(sensors_data), 5, 7)
+    mag = calculateModule(np.vstack(sensors_data), 8, 10)
+
+    #print(len(acc))
+
+    p_acc, p_gyr, p_mag = test_normality(acc, gyr, mag)
+
+    p_values = [p_acc, p_gyr, p_mag]
+    modules = [acc, gyr, mag]
+    nomes = ["Acelerometro", "Giroscopio", "Magnetometro"]
+
+    # DADOS UNPAIRED porque juntamos todas as pessoas para avaliar as atividades
+    # se quiser comparar atividade com atividade sao 136 valores
+    # fisher e chi-square e McNemar sao para categoricos ❌
+    # Student's - distribuiçao normal ❌
+    # Analysis of variance - unpaired, normal ❌
+    # Wilcoxon’s - ordinal/continuous, nao precisa ser normal, paired e unpaired, 2 grupos ✅
+    # Kruskal-Wallis - tal como wilcoxon, para unpaired, mais q 2 grupos
+    # friedman - nao normal, +2 grupos, paired (varias atividades da mesma pessoa)
+    # ...
+
+    
+    for i in range(3):
+        print("\nKruskal-Wallis")
+        if p_values[i] < 0.05:
+            print(f"{nomes[i]} (H, p):")
+            statisticalTest(modules[i])
+        else:
+            # NESTE CASO CONCLUIMOS QUE OS PVALUES SAÕ < 0.05 -> logo não têm distribuiçao normal
+                # não precisamos fazer codigo para o caso de ter distribuiçao normal
+            pass
+    
+    #statisticalTest_OnePerson(acc)
+
 
     return
 
@@ -976,8 +1072,7 @@ def main():
     create_list_by_sensor()
 
     # EX 3.1
-
-    #num_outliers_per_sensor = boxPlot_modules_3(plot = False)  #This is the right one
+    #num_outliers_per_sensor = boxPlot_modules_3(plot = False, save = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
@@ -988,9 +1083,9 @@ def main():
     # created: z_scores()
 
     # EX 3.4
-    k = 3       # 3 ; 3.5 ; 4
+    k = 4       # 3 ; 3.5 ; 4
 
-    #ex_3_4(k, plot = False)
+    # ex_3_4(k, plot = False, save = True)
 
     # EX 3.6
     #centroids, labels, distances = kmeans(individuals[0][0][:, 1:4], 16, 100, 1e-4, 40) #Usámos o número de atividades para o número de clusters
@@ -1036,6 +1131,7 @@ def main():
     # ex_3_11(all_modules)
 
     # EX 4.1
+
     # ex_4_1()
 
     # EX 4.2
@@ -1045,6 +1141,8 @@ def main():
         matrix = extract_features_by_sensor(sensors_data[i], 2, 0.5)
         all_features_list.append(matrix)
 
+    # EX 4.3 - PCA
+    # 
 
     return
 
