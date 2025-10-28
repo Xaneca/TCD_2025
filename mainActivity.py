@@ -8,6 +8,7 @@ from sklearn.linear_model import LinearRegression
 from scipy.stats import skew, kurtosis, iqr, pearsonr
 from numpy.fft import fft, fftfreq
 from features import extract_feature_vector
+import os
 
 
 
@@ -244,16 +245,43 @@ def calculateDensityOutliers(num_outliers_per_activity):
             print(f"    {activities.loc[a, 'name']}: {d:.2f}%")
     return
 
-def z_scores(data, k):
+def z_scores(data, k=None):
     mean = np.mean(data)
     std_dev = np.std(data)
 
     z = (data - mean)/std_dev
 
-    outliers_mask = np.abs(z) > k
+    outliers_mask = []
+    if k != None:
+        outliers_mask = np.abs(z) > k
     #not_outliers_mask = np.abs(z) <= k
 
-    return outliers_mask
+    return outliers_mask, z
+
+def z_scores(data, k=None):
+    """
+    Normaliza os dados usando Z-score (coluna a coluna, se for uma matriz 2D).
+    Retorna (outliers_mask, z), onde:
+      - z é o array normalizado
+      - outliers_mask é opcional (|z| > k)
+    """
+
+    data = np.asarray(data, dtype=float)
+
+    # Calcular média e desvio padrão por coluna (axis=0)
+    mean = np.mean(data, axis=0)
+    std_dev = np.std(data, axis=0)
+    std_dev[std_dev == 0] = 1e-8  # evitar divisão por zero
+
+    # Normalização vetorizada
+    z = (data - mean) / std_dev
+
+    # Máscara de outliers opcional
+    outliers_mask = None
+    if k is not None:
+        outliers_mask = np.abs(z) > k
+
+    return outliers_mask, z
 
 def show_outliers(start_idx, k, title):
     for s in range(NUM_SENSORS):
@@ -879,9 +907,8 @@ def ex_3_10(modules_acceleration):
     plt.ylabel('Erro médio (MSE)')
     plt.title('Erro de previsão vs Tamanho da janela (p)')
     plt.grid(True)
-    plt.show()
     plt.savefig(PLOT_PATH + "/ex3_10" + f"/crossoverValidation.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
-
+    plt.show()
 
     k = 2 #Valor normalmente usado para k
     data, target_outliers, outlier_indices = inject_outliers(modules_acceleration, k, 10, 1)
@@ -1085,7 +1112,9 @@ def ex_4_1():
 
     return
 
-def PCA(X):
+# EX 4.3
+
+def PCA(X, num_sensor):
     # First center data
     X_mean = np.mean(X, axis=0)
     X_centered = X - X_mean
@@ -1125,7 +1154,27 @@ def PCA(X):
     plt.xlabel("Componente Principal 1")
     plt.ylabel("Componente Principal 2")
     plt.grid(True)
+    plt.savefig(PLOT_PATH + "/ex4_3" + f"/pca_sensor{num_sensor}.png", dpi=300, bbox_inches="tight")  
     plt.show()
+
+    # variancia
+    plt.figure(figsize=(8, 5))
+    plt.plot(range(1, len(var_acumulada) + 1), var_acumulada, marker='o')
+    plt.axhline(0.75, color='r', linestyle='--', label='75% Variância')
+    plt.axvline(num_comp, color='g', linestyle='--', label=f'{num_comp} componentes')
+    plt.title(f"PCA Sensor {num_sensor} — Variância Explicada Acumulada")
+    plt.xlabel("Número de Componentes Principais")
+    plt.ylabel("Variância Explicada Acumulada")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(PLOT_PATH + f"/ex4_3/pca_sensor{num_sensor}_variance.png",
+                dpi=300, bbox_inches="tight")
+    plt.show()
+
+    X_pca_75 = np.dot(X, eig_vecs[:, :num_comp])
+    i = 0  # primeira amostra / janela
+    print("Features comprimidas (instante 0):", X_pca_75[i])
 
 #EX4.2 ____________________________________________________________________
 
@@ -1153,6 +1202,66 @@ def extract_features_by_sensor(data, window_time, overlap):
     print("features shape (4.2):", features_matrix.shape)
     return features_matrix
 
+def save_features_to_file(all_features_list_norm, filename="features.npy"):
+    """
+    Guarda as features normalizadas num ficheiro .npy (formato binário do NumPy).
+    """
+    np.save(filename, np.array(all_features_list_norm, dtype=object))
+    print(f"[OK] Features guardadas em '{filename}' ({len(all_features_list_norm)} sensores).")
+
+def load_features_from_file(filename="features.npy"):
+    """
+    Lê as features normalizadas de um ficheiro .npy, se existir.
+    Caso contrário, devolve None.
+    """
+    if os.path.exists(filename):
+        data = np.load(filename, allow_pickle=True)
+        print(f"[OK] Features carregadas de '{filename}' ({len(data)} sensores).")
+        return data
+    else:
+        print(f"[INFO] Ficheiro '{filename}' não encontrado.")
+        return None
+
+def ex_4_2():
+    print("=== Verificando ficheiro de features ===")
+
+    filename = "all_features_norm.npy"
+
+    # Tenta carregar primeiro
+    loaded_features = load_features_from_file(filename)
+
+    if loaded_features is not None:
+        print("[OK] Features já existentes foram carregadas.")
+        all_features_list_norm = loaded_features
+
+    else:
+        print("[INFO] Ficheiro não encontrado. Criando features...")
+
+        all_features_list = []
+        for i in range(NUM_SENSORS):
+            print(f"\tSensor: {i}")
+            matrix = extract_features_by_sensor(sensors_data[i], 2, 0.5)
+            all_features_list.append(matrix)
+
+        print("\nExemplo (primeiras 20 linhas do sensor 0):")
+        print(all_features_list[0][:20])
+
+        print("\nNormalizando:")
+        all_features_list_norm = []
+        for i in range(NUM_SENSORS):
+            print(f"\tSensor: {i}")
+            _, z = z_scores(all_features_list[i])
+            all_features_list_norm.append(z)
+
+        # Guardar no ficheiro
+        save_features_to_file(all_features_list_norm, filename)
+        print(f"[OK] Features criadas e guardadas em '{filename}'.")
+
+    print("\nShape do sensor 0:", all_features_list_norm[0].shape)
+    # print("Primeiras 20 linhas normalizadas do sensor 0:")
+    # print(all_features_list_norm[0][:20])
+    return all_features_list_norm
+
 def main():
     # EX 2
     getFiles(PATH)                  # get all the individuals
@@ -1178,23 +1287,23 @@ def main():
     # ex_3_4(k, plot = False, save = True)
 
     # EX 3.6 e 3.7 ----------------------------------
-    list_density_1 = ex_3_7("Accelerometer", 1, False)
-    list_density_2 = ex_3_7("Gyroscope", 4, False)
-    list_density_3 = ex_3_7("Magnetometer", 7, False)
+    # list_density_1 = ex_3_7("Accelerometer", 1, False)
+    # list_density_2 = ex_3_7("Gyroscope", 4, False)
+    # list_density_3 = ex_3_7("Magnetometer", 7, False)
 
-    heatmap_data = np.array([list_density_1, list_density_2, list_density_3]).T
+    # heatmap_data = np.array([list_density_1, list_density_2, list_density_3]).T
 
-    plt.imshow(heatmap_data, cmap='YlOrRd_r', aspect='auto')
-    plt.colorbar(label='Density')
-    plt.title('Outlier Density Heatmap')
-    plt.xlabel('Vector')
-    plt.ylabel('Sensor')
+    # plt.imshow(heatmap_data, cmap='YlOrRd_r', aspect='auto')
+    # plt.colorbar(label='Density')
+    # plt.title('Outlier Density Heatmap')
+    # plt.xlabel('Vector')
+    # plt.ylabel('Sensor')
 
-    # opcional: mostrar rótulos nos eixos
-    plt.xticks(ticks=range(3), labels=['Accelerometer', 'Gyroscope', 'Magnetometer'])
-    plt.yticks(ticks=range(5), labels=[f'Sensor {i+1}' for i in range(5)])
-    plt.savefig(PLOT_PATH + "/ex3_7" + f"/kmeans_heatmap.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
-    plt.show()
+    # # opcional: mostrar rótulos nos eixos
+    # plt.xticks(ticks=range(3), labels=['Accelerometer', 'Gyroscope', 'Magnetometer'])
+    # plt.yticks(ticks=range(5), labels=[f'Sensor {i+1}' for i in range(5)])
+    # plt.savefig(PLOT_PATH + "/ex3_7" + f"/kmeans_heatmap.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+    # plt.show()
     # -----------------------------------------------
 
     # EX 3.8
@@ -1228,25 +1337,14 @@ def main():
     # ex_4_1()
 
     # EX 4.2
-
-    all_features_list = []
-    for i in range(NUM_SENSORS):
-        matrix = extract_features_by_sensor(sensors_data[i], 2, 0.5)
-        all_features_list.append(matrix)
+    all_features_list_norm = ex_4_2()
 
     # EX 4.3 - PCA
 
-    np.random.seed(42)
-    n_amostras = 100   # número de linhas
-    n_features = 110   # número de colunas (features)
+    for i in range(NUM_SENSORS):
+        PCA(all_features_list_norm[i], i)
 
-    # gera clusters artificiais com algum padrão
-    X1 = np.random.normal(loc=0, scale=1, size=(n_amostras//3, n_features))
-    X2 = np.random.normal(loc=5, scale=1, size=(n_amostras//3, n_features))
-    X3 = np.random.normal(loc=-5, scale=1, size=(n_amostras//3, n_features))
-    X = np.vstack((X1, X2, X3))
-
-    PCA(X)
+    # EX 4.4
 
     return
 
