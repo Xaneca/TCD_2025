@@ -1291,9 +1291,14 @@ def main():
     # list_density_2 = ex_3_7("Gyroscope", 4, False)
     # list_density_3 = ex_3_7("Magnetometer", 7, False)
 
+    # calculado para n demorar tanto tempo
+    # list_density_1 = [1.1137663331830852, 1.2115522117351214, 1.2957499872220466, 1.2967960035310169, 1.7952385509158766]
+    # list_density_2 = [1.9545680032030541, 1.8585149531789815, 1.3943040471381971, 2.354220166920793, 1.973024834678902]
+    # list_density_3 = [1.025002455171094, 0.7779413589287382, 0.7235597936131203, 0.7327862932348929, 1.1501966729286388]
+
     # heatmap_data = np.array([list_density_1, list_density_2, list_density_3]).T
 
-    # plt.imshow(heatmap_data, cmap='YlOrRd_r', aspect='auto')
+    # plt.imshow(heatmap_data, cmap='YlOrRd', aspect='auto')
     # plt.colorbar(label='Density')
     # plt.title('Outlier Density Heatmap')
     # plt.xlabel('Vector')
@@ -1337,12 +1342,12 @@ def main():
     # ex_4_1()
 
     # EX 4.2
-    all_features_list_norm = ex_4_2()
+    # all_features_list_norm = ex_4_2()
 
     # EX 4.3 - PCA
 
-    for i in range(NUM_SENSORS):
-        PCA(all_features_list_norm[i], i)
+    # for i in range(NUM_SENSORS):
+    #     PCA(all_features_list_norm[i], i)
 
     # EX 4.4
 
