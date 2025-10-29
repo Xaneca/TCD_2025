@@ -1419,7 +1419,7 @@ def main():
     # ex_4_1()
 
     # EX 4.2
-    # all_features_list_norm = ex_4_2()
+    all_features_list_norm = ex_4_2()
 
     # EX 4.3 - PCA
 
