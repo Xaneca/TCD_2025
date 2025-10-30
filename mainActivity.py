@@ -514,6 +514,7 @@ def ex_3_7(vec, ind_start, plot = True):
     ####################################################3
 
     list_density = []
+    labels_by_sensor = []
 
     # vetor
     print("Vector: ", vec)
@@ -521,10 +522,11 @@ def ex_3_7(vec, ind_start, plot = True):
         centroids, labels, distances = kmeans(sensors_data[i][:, ind_start:ind_start+3], 16, 100, 1e-4, 40)
         n_outliers, outliers, n_total = calculate_outliers_by_centroids(distances, 3, labels)
         list_density.append(n_outliers/n_total*100)
+        labels_by_sensor.append(labels)
         print("sensor", i, n_outliers/n_total*100, "%")
         graph_3d(centroids, sensors_data[i][:, ind_start:ind_start+3], labels, outliers, vec, i, plot)
     
-    return list_density
+    return list_density, labels_by_sensor
 
 
 #EX 3.8
@@ -1264,40 +1266,42 @@ def ex_4_2():
     return all_features_list_norm
 
 
-#EX4.4----------------------------------------------------------------------------------
+#EX4.5----------------------------------------------------------------------------------
 
-def fisher_score(X, y):
-    """
-    Calcula Fisher Score para cada feature.
-    
-    X: array (n_samples, n_features) - features normalizadas
-    y: array (n_samples,) - labels/classes
-    
-    Retorna:
-    scores: array (n_features,) - Fisher Score de cada feature
-    """
-    classes = np.unique(y)
+def act_fisher_score(X, mu_f):
     n_samples, n_features = X.shape
-    scores = np.zeros(n_features)
+    mu_fc = np.mean(X, axis=0)
+    sigma_fc2 = np.var(X, axis=0, ddof=1)
 
-    for f in range(n_features):
-        numerator = 0.0
-        denominator = 0.0
-        mu_f = np.mean(X[:, f])
+    numerador = n_samples * (mu_fc - mu_f)**2
+    denominador = n_samples * sigma_fc2
 
-        for c in classes:
-            X_c = X[y == c, f]
-            n_c = len(X_c)
-            mu_fc = np.mean(X_c)
-            sigma_fc2 = np.var(X_c, ddof=1)
-            
-            numerator += n_c * (mu_fc - mu_f)**2
-            denominator += n_c * sigma_fc2
+    return numerador, denominador
+
+def fisher_score(all_features_norm):
+    print(all_features_norm[0][0].shape)
+    num_feat = all_features_norm[0][0].shape[1]
+    all_scores = np.zeros((NUM_SENSORS, num_feat)) # (5, 110)
+
+    for s in range(NUM_SENSORS):
+        print(f"Sensor {s}:")
+        sensor_score = np.zeros(num_feat)
+
+        # TODO: calcular media de todos
+        mu_f = 400  # valor errado
+
+        numerador = np.zeros((NUM_ACTIVITIES, num_feat))
+        denominador = np.zeros((NUM_ACTIVITIES, num_feat))
+        for a in range(NUM_ACTIVITIES):
+            print(f"activity {a}:")
+            numerador[a], denominador[a] = act_fisher_score(all_features_norm[s][a], mu_f)
+            print(f"numerador: {numerador[a]}\ndenominador: {denominador[a]}\n")
+
+        sensor_score = np.sum(numerador, axis=0) / (np.sum(denominador, axis=0) + 1e-8)
         
-        # Evitar divisão por zero
-        scores[f] = numerator / (denominator + 1e-8)
-    
-    return scores
+        all_scores[s] = sensor_score
+
+    return all_scores
 
 def reliefF(X, y, k=10):
     """
@@ -1339,6 +1343,11 @@ def reliefF(X, y, k=10):
     scores /= n_samples
     return scores
 
+def ex_4_5(all_features_norm):
+    all_scores = fisher_score(all_features_norm)
+    print(all_scores)
+    return
+
 def main():
     # EX 2
     getFiles(PATH)                  # get all the individuals
@@ -1364,9 +1373,47 @@ def main():
     # ex_3_4(k, plot = False, save = True)
 
     # EX 3.6 e 3.7 ----------------------------------
-    # list_density_1 = ex_3_7("Accelerometer", 1, False)
-    # list_density_2 = ex_3_7("Gyroscope", 4, False)
-    # list_density_3 = ex_3_7("Magnetometer", 7, False)
+    # list_density_1, labels_by_sensor1 = ex_3_7("Accelerometer", 1, False)
+    # number_labels = np.unique(labels_by_sensor1[0])
+    # number_activities = np.unique(sensors_data[1][:, -1])
+    # print(number_labels)
+    # print(number_activities)
+
+    # # Cria uma matriz 16x16 inicializada com zeros
+    # matriz = np.zeros((len(number_activities), len(number_activities)), dtype=int)
+
+    # # Preenche a matriz com contagens
+    # for a, b in zip(labels_by_sensor1[0], sensors_data[1][:, -1]):
+    #     matriz[a, int(b-1)] += 1   # -1 porque os índices começam em 0
+
+    # # Visualização
+    # fig, ax = plt.subplots(figsize=(12, 10))
+    # im = ax.imshow(matriz, cmap="Blues")
+
+    # # Adiciona rótulos
+    # ax.set_xticks(np.arange(len(number_activities)))
+    # ax.set_yticks(np.arange(len(number_activities)))
+    # ax.set_xticklabels(np.arange(1, len(number_activities) + 1))
+    # ax.set_yticklabels(np.arange(1, len(number_activities) + 1))
+
+    # # Mostra o valor dentro de cada célula
+    # for i in range(len(number_activities)):
+    #     for j in range(len(number_activities)):
+    #         ax.text(j, i, matriz[i, j],
+    #                 ha="center", va="center",
+    #                 color="black" if matriz[i, j] < matriz.max()/2 else "white")
+
+    # # Títulos e labels
+    # ax.set_xlabel("Labels da Lista 2 (Preditas)")
+    # ax.set_ylabel("Labels da Lista 1 (Verdadeiras)")
+    # ax.set_title("Matriz 16x16 - Contagem de combinações de labels")
+
+    # plt.colorbar(im)
+    # plt.tight_layout()  # adiciona espaço entre elementos
+    # plt.show()
+
+    #list_density_2, labels_by_sensor2 = ex_3_7("Gyroscope", 4, False)
+    #list_density_3, labels_by_sensor3 = ex_3_7("Magnetometer", 7, False)
 
     # heatmap_data = np.array([list_density_1, list_density_2, list_density_3]).T
 
@@ -1418,20 +1465,20 @@ def main():
 
     # EX 4.3 - PCA
 
-    for i in range(NUM_SENSORS):
-        PCA(all_features_list_norm[i], i)
+    #for i in range(NUM_SENSORS):
+    #    PCA(all_features_list_norm[i], i)
 
     # EX 4.4
-    scores_fs = fisher_score(all_features_list_norm[0], sensors_data[0][:, -1])
+    # scores_fs = fisher_score(all_features_list_norm[0], sensors_data[0][:, -1])
+    # # Ordenar features
+    # idx_fs = np.argsort(scores_fs)[::-1]
+    # print("Top 10 features por Fisher Score:", idx_fs[:10])
 
-    # Ordenar features
-    idx_fs = np.argsort(scores_fs)[::-1]
-    print("Top 10 features por Fisher Score:", idx_fs[:10])
+    # scores_relief = reliefF(all_features_list_norm[0], sensors_data[0][:, -1], k=10)
+    # idx_relief = np.argsort(scores_relief)[::-1]
+    # print("Top 10 features por ReliefF:", idx_relief[:10])
 
-    scores_relief = reliefF(all_features_list_norm[0], sensors_data[0][:, -1], k=10)
-    idx_relief = np.argsort(scores_relief)[::-1]
-    print("Top 10 features por ReliefF:", idx_relief[:10])
-
+    ex_4_5(all_features_list_norm)
 
     return
 
