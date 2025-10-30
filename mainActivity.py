@@ -1557,13 +1557,19 @@ def main():
     pca_filename = "pca_75_list.npy"
     pca_75_list = load_from_file(pca_filename)
 
-    if pca_75_list is None:
-        pca_75_list = []
-        for i in range(NUM_SENSORS):
-            x_pca_75 = run_PCA_by_activity(all_features_list_norm[i], i, PLOT_PATH, False)
-            pca_75_list.append(pca_75_list)
-        save_to_file(pca_75_list, "pca_75_list.npy", "Resultados PCA")
-    plot_global_pca_clusters(pca_75_list)
+    num = 0
+    for i in range(5):
+        for act in range(16):
+            num += len(all_features_list_norm[i][act])
+    print("asxfghnjmk",num)
+
+    # if pca_75_list is None:
+    #     pca_75_list = []
+    #     for i in range(NUM_SENSORS):
+    #         x_pca_75 = run_PCA_by_activity(all_features_list_norm[i], i, PLOT_PATH, False)
+    #         pca_75_list.append(pca_75_list)
+    #     save_to_file(pca_75_list, "pca_75_list.npy", "Resultados PCA")
+    # plot_global_pca_clusters(pca_75_list)
 
     # EX 4.5
     # scores_fs = fisher_score(all_features_list_norm[0], sensors_data[0][:, -1])
