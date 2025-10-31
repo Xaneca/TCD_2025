@@ -175,25 +175,8 @@ def calculateDensityOutliers(num_outliers_per_activity):
     return
 
 def z_scores(data, k=None):
-    mean = np.mean(data)
-    std_dev = np.std(data)
-
-    z = (data - mean)/std_dev
-
-    outliers_mask = []
-    if k != None:
-        outliers_mask = np.abs(z) > k
-    #not_outliers_mask = np.abs(z) <= k
-
-    return outliers_mask, z
-
-def z_scores(data, k=None):
-    """
-    Normaliza os dados usando Z-score (coluna a coluna, se for uma matriz 2D).
-    Retorna (outliers_mask, z), onde:
-      - z é o array normalizado
-      - outliers_mask é opcional (|z| > k)
-    """
+    """ outliers_mas k -> destaca os pontos que são outliers
+        z -> devolve o cálculo do z-score para normalizaçao  """
 
     data = np.asarray(data, dtype=float)
 
@@ -235,7 +218,9 @@ def show_outliers(start_idx, k, title):
     return
 
 def show_outliers(start_idx, k, title, plot = True, save = False):
-    # sensors_list = create_list_by_sensor()
+    # sensors_list = create_list_by_sensor()        # já é corrido no inicio do codigo
+    vector_outliers = []
+
     for s in range(NUM_SENSORS):
         print(f"\tSensor {titles_sensors[s]}")
         colors = []
@@ -254,6 +239,11 @@ def show_outliers(start_idx, k, title, plot = True, save = False):
                 z = (y_act - mean) / std
                 outliers_mask[mask] = np.abs(z) > k  # marca só os dessa atividade
 
+        # numero de outliers e numero de pontos totais:
+        num_outliers = np.sum(outliers_mask)
+        total_points = len(outliers_mask)
+        vector_outliers.append([num_outliers, total_points])
+
         colors.extend(np.where(outliers_mask, "red", "blue"))
         #print(colors[:50])
         plt.figure(figsize = (8,5))
@@ -266,27 +256,60 @@ def show_outliers(start_idx, k, title, plot = True, save = False):
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.5)
         if save:
-            plt.savefig(PLOT_PATH + "/ex3_4" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+            plt.savefig(PLOT_PATH + "/ex3_4_k_3" + f"/sensor{s}_{title}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
         if plot:
             plt.show()
         plt.close()
 
-    return
+    return vector_outliers
 
 def ex_3_4(k, plot = True, save = False):
+    all_outlier_vectors = []
+
+    print("Executing z_score outliers:")
+
     # accelerometter:
     print(f"Vector {titles_vectors[0]}:")
-    show_outliers(1, k, titles_vectors[0], plot, save)
+    all_outlier_vectors.append(show_outliers(1, k, titles_vectors[0], plot, save))
 
     # gyroscope
     print(f"Vector {titles_vectors[1]}:")
-    show_outliers(4, k, titles_vectors[1], plot, save)
+    all_outlier_vectors.append(show_outliers(4, k, titles_vectors[1], plot, save))
 
     # mangetometer
     print(f"Vector {titles_vectors[2]}:")
-    show_outliers(7, k, titles_vectors[2], plot, save)
+    all_outlier_vectors.append(show_outliers(7, k, titles_vectors[2], plot, save))
 
-    return
+    return all_outlier_vectors
+
+def plot_z_outlier_heatmap_from_list(results, save = False, plot = False):
+    heatmap_data = np.zeros((NUM_SENSORS, 3))  # sensores × vetores
+
+    for v in range(3):
+        for s in range(NUM_SENSORS):
+            n_out, total = results[v][s]
+            heatmap_data[s, v] = density(n_out, total) if total > 0 else 0
+
+    plt.figure(figsize=(8,6))
+    im = plt.imshow(heatmap_data, cmap="Reds", aspect="auto")
+    plt.xticks(range(3), titles_vectors)
+    plt.yticks(range(NUM_SENSORS), titles_sensors)
+    plt.title("Densidade Global de Outliers (%)")
+    plt.xlabel("Vetor")
+    plt.ylabel("Sensor")
+
+    for i in range(NUM_SENSORS):
+        for j in range(3):
+            plt.text(j, i, f"{heatmap_data[i, j]:.1f}%", ha="center", va="center", color="black", fontsize=9)
+
+    plt.colorbar(im, label="Densidade de Outliers (%)")
+    plt.tight_layout()
+    if save:
+        plt.savefig(PLOT_PATH + "/ex3_4_k_3" + f"/density_HeatMap.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
+    if plot:
+        plt.show()
+    plt.close()
+
 
 # EX 3.6
 
@@ -1539,9 +1562,11 @@ def main():
     # created: z_scores()
 
     # EX 3.4
-    #k = 4       # 3 ; 3.5 ; 4
 
-    #ex_3_4(k, plot = False, save = False)
+    k = 3       # 3 ; 3.5 ; 4
+
+    results = ex_3_4(k, plot = False, save = True)
+    plot_z_outlier_heatmap_from_list(results, save=True, plot=True)
 
     # EX 3.6 e 3.7 ----------------------------------
     #list_density_1, labels_by_sensor1 = ex_3_7("Accelerometer", 1, False)
@@ -1602,7 +1627,9 @@ def main():
     # ex_4_1()
 
     # EX 4.2
+
     all_features_list_norm = ex_4_2()
+
     # print(all_features_list_norm[4][14][:,1])
     # print(all_features_list_norm[4][13][:,1])
 
@@ -1634,7 +1661,12 @@ def main():
         print("Top 10 features por Fisher Score:", idx_fs[:10])
 
 
-    #ex_4_5(all_features_list_norm)
+
+    # scores_relief = reliefF(all_features_list_norm[0], sensors_data[0][:, -1], k=10)
+    # idx_relief = np.argsort(scores_relief)[::-1]
+    # print("Top 10 features por ReliefF:", idx_relief[:10])
+
+    # ex_4_5(all_features_list_norm)
 
     return
 
