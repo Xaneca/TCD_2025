@@ -1167,7 +1167,7 @@ def load_from_file(filename="data.npy", description="Dados"):
         print(f"[INFO] Ficheiro '{filename}' não encontrado. {description} será recalculado.")
         return None
 
-def ex_4_2():
+def ex_4_2_ancient():
     print("=== Verificando ficheiro de features ===")
 
     filename = "all_features_norm.npy"
@@ -1468,6 +1468,29 @@ def fisher_score(all_features_norm):
 
     return all_scores
 
+def prepares_data_for_reliefF(all_data_norm): 
+    X_sensors = []  # lista para armazenar os dados de cada sensor
+    y_sensors = []  # lista para armazenar os labels de cada sensor
+
+    for big_list in all_data_norm:  # percorre os 5 sensores
+        X_sensor = []
+        y_sensor = []
+        
+        for class_idx, arr in enumerate(big_list):  # percorre as 16 classes
+            X_sensor.append(arr)  # adiciona o array de amostras da classe
+            y_sensor.append(np.full(arr.shape[0], class_idx))  # cria vetor de labels
+        
+        # Junta todas as classes do sensor num único array
+        X_sensor = np.vstack(X_sensor)
+        y_sensor = np.hstack(y_sensor)
+        
+        # Adiciona à lista de sensores
+        X_sensors.append(X_sensor)
+        y_sensors.append(y_sensor)
+
+    return X_sensors, y_sensors
+
+
 def reliefF(X, y, k=10):
     """
     ReliefF para seleção de features.
@@ -1509,8 +1532,27 @@ def reliefF(X, y, k=10):
     return scores
 
 def ex_4_5(all_features_norm):
-    all_scores = fisher_score(all_features_norm)
-    print(all_scores)
+    # all_scores = fisher_score(all_features_norm)
+    # print(all_scores)
+
+    # Supondo que tens os dados normalizados em all_data_norm
+    X_sensors, y_sensors = prepares_data_for_reliefF(all_features_norm)
+
+    scores_sensors = []
+
+    # Itera sobre os 5 sensores
+    for X_sensor, y_sensor in zip(X_sensors, y_sensors):
+        scores = reliefF(X_sensor, y_sensor, k=10)
+        scores_sensors.append(scores)
+
+    # Exemplo: mostrar os scores do sensor 0
+    print("Scores sensor 0:", scores_sensors[0])
+
+    # Se quiseres ver os top 10 features de cada sensor
+    for i, scores in enumerate(scores_sensors):
+        top_features = np.argsort(scores)[::-1][:10]
+        print(f"Top 10 features sensor {i}:", top_features)
+
     return
 
 def main():
