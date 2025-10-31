@@ -12,7 +12,6 @@ from features import extract_feature_vector
 import os
 
 
-
 PATH = "./../FORTH_TRACE_DATASET-master/FORTH_TRACE_DATASET-master"
 PLOT_PATH = "./plots"
 activities = pd.read_csv("nameActivities.csv")
@@ -43,6 +42,7 @@ def getFiles(path):
             df = pd.read_csv(f'{path}/part{i}/part{i}dev{j + 1}.csv')
             ind.append(df.to_numpy())
         individuals.append(ind)
+    print("Individuals Extracted")
     return
 
 def getIndividual(path, ind_num):
@@ -50,7 +50,6 @@ def getIndividual(path, ind_num):
     for j in range(NUM_SENSORS):
         df = pd.read_csv(f'{path}/part{ind_num}/part{ind_num}dev{j + 1}.csv')
         ind.append(df.to_numpy())
-    print("Individuals Extracted")
     return ind
 
 # def calculateModule(ind, sensor_num, i_x, i_z):
@@ -1115,9 +1114,168 @@ def ex_4_1():
 
     return
 
+#EX4.2 ____________________________________________________________________
+
+def extract_features_by_sensor(data, window_time, overlap):
+
+    # Tamanho da janela e do passo em amostras
+    window_size = int(window_time * FS)
+    step_size = int(window_size * (1 - overlap))
+
+    # Lista para armazenar as features de cada janela
+    feature_list = []
+
+    # Percorrer o sinal criando as janelas
+    for start in range(0, len(data) - window_size + 1, step_size):
+        end = start + window_size
+        window = data[start:end]
+
+        # Extrair features da janela (função fornecida pelo utilizador)
+        feats = extract_feature_vector(window)
+        feature_list.append(feats)
+
+    # Converter lista em matriz (n_janelas × n_features)
+    features_matrix = np.vstack(feature_list)
+
+    print("features shape (4.2):", features_matrix.shape)
+    return features_matrix
+
+def save_to_file(obj, filename="data.npy", description="Dados"):
+    """
+    Guarda uma lista ou array em ficheiro .npy usando NumPy.
+    
+    Parâmetros:
+        obj : list ou np.ndarray
+            Estrutura de dados a guardar (ex: features ou PCA).
+        filename : str
+            Nome do ficheiro de saída.
+        description : str
+            Texto para imprimir no log.
+    """
+    np.save(filename, np.array(obj, dtype=object))
+    print(f"[OK] {description} guardados em '{filename}' ({len(obj)} sensores).")
+
+def load_from_file(filename="data.npy", description="Dados"):
+    """
+    Carrega um ficheiro .npy guardado com `save_to_file`.
+    """
+    try:
+        data = np.load(filename, allow_pickle=True)
+        print(f"[OK] {description} carregados de '{filename}'.")
+        return data
+    except FileNotFoundError:
+        print(f"[INFO] Ficheiro '{filename}' não encontrado. {description} será recalculado.")
+        return None
+
+def ex_4_2():
+    print("=== Verificando ficheiro de features ===")
+
+    filename = "all_features_norm.npy"
+
+    # Tenta carregar primeiro
+    loaded_features = load_from_file(filename)
+
+    if loaded_features is not None:
+        print("[OK] Features já existentes foram carregadas.")
+        all_features_list_norm = loaded_features
+
+    else:
+        print("[INFO] Ficheiro não encontrado. Criando features...")
+
+        all_features_list = []
+        for i in range(NUM_SENSORS):
+            print(f"\tSensor: {i}")
+            matrix = extract_features_by_sensor(sensors_data[i], 2, 0.5)
+            all_features_list.append(matrix)
+
+        print("\nExemplo (primeiras 20 linhas do sensor 0):")
+        print(all_features_list[0][:20])
+
+        print("\nNormalizando:")
+        all_features_list_norm = []
+        for i in range(NUM_SENSORS):
+            print(f"\tSensor: {i}")
+            _, z = z_scores(all_features_list[i])
+            all_features_list_norm.append(z)
+
+        # Guardar no ficheiro
+        save_to_file(all_features_list_norm, filename)
+        print(f"[OK] Features criadas e guardadas em '{filename}'.")
+
+    print("\nShape do sensor 0:", all_features_list_norm[0].shape)
+    # print("Primeiras 20 linhas normalizadas do sensor 0:")
+    # print(all_features_list_norm[0][:20])
+    return all_features_list_norm
+
+def ex_4_2():
+    print("=== Verificando ficheiro de features ===")
+
+    filename = "all_features_norm.npy"
+
+    # Tenta carregar primeiro
+    loaded_features = load_from_file(filename)
+
+    if loaded_features is not None:
+        print("[OK] Features já existentes foram carregadas.")
+        all_features_list_norm = loaded_features
+
+    else:
+        print("[INFO] Ficheiro não encontrado. Criando features...")
+
+        all_features_list = []
+
+        for i in range(NUM_SENSORS):
+            print(f"\nSensor {i}:")
+            sensor_data = sensors_data[i]
+            X = sensor_data[:, :-1]     # dados do sensor
+            labels = sensor_data[:, -1] # labels (1–16)
+
+            sensor_features_by_activity = []
+
+            for act in range(1, NUM_ACTIVITIES + 1):
+                print(f"\tAtividade {act}...")
+
+                # Selecionar apenas as amostras desta atividade
+                act_data = X[labels == act]
+
+                # Extrair features por janelas (2 s, 50% overlap)
+                matrix = extract_features_by_sensor(act_data, 2, 0.5)
+
+                sensor_features_by_activity.append(matrix)
+
+            all_features_list.append(sensor_features_by_activity)
+
+        # Converter tudo em numpy (estrutura 5 × 16, com matrizes internas)
+        all_features_list = np.array(all_features_list, dtype=object)
+
+        print("\nNormalizando:")
+        all_features_list_norm = []
+
+        for i in range(NUM_SENSORS):
+            print(f"\tSensor: {i}")
+            norm_sensor_features = []
+
+            for act in range(NUM_ACTIVITIES):
+                _, z = z_scores(all_features_list[i][act])
+                norm_sensor_features.append(z)
+
+            all_features_list_norm.append(norm_sensor_features)
+
+        all_features_list_norm = np.array(all_features_list_norm, dtype=object)
+
+        # Guardar no ficheiro
+        save_to_file(all_features_list_norm, filename)
+        print(f"[OK] Features criadas e guardadas em '{filename}'.")
+
+    # Exemplo de confirmação
+    print("\nExemplo de shape:")
+    print("Sensor 0, Atividade 0 ->", all_features_list_norm[0][0].shape)
+
+    return all_features_list_norm
+
 # EX 4.3
 
-def PCA(X, num_sensor):
+def PCA(X, name_file, num_sensor, num_act, plot = True):
     # First center data
     X_mean = np.mean(X, axis=0)
     X_centered = X - X_mean
@@ -1157,78 +1315,85 @@ def PCA(X, num_sensor):
     plt.xlabel("Componente Principal 1")
     plt.ylabel("Componente Principal 2")
     plt.grid(True)
-    plt.savefig(PLOT_PATH + "/ex4_3" + f"/pca_sensor{num_sensor}.png", dpi=300, bbox_inches="tight")  
-    plt.show()
+    plt.savefig(PLOT_PATH + "/ex4_3" + f"/{name_file}.png", dpi=300, bbox_inches="tight")  
+    if plot:
+        plt.show()
+    plt.close()
 
     # variancia
     plt.figure(figsize=(8, 5))
     plt.plot(range(1, len(var_acumulada) + 1), var_acumulada, marker='o')
     plt.axhline(0.75, color='r', linestyle='--', label='75% Variância')
     plt.axvline(num_comp, color='g', linestyle='--', label=f'{num_comp} componentes')
-    plt.title(f"PCA Sensor {num_sensor} — Variância Explicada Acumulada")
+    plt.title(f"PCA Sensor {num_sensor}, Activity {num_act} — Variância Explicada Acumulada")
     plt.xlabel("Número de Componentes Principais")
     plt.ylabel("Variância Explicada Acumulada")
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(PLOT_PATH + f"/ex4_3/pca_sensor{num_sensor}_variance.png",
-                dpi=300, bbox_inches="tight")
-    plt.show()
+    plt.savefig(PLOT_PATH + f"/ex4_3/{name_file}.png", dpi=300, bbox_inches="tight")
+    if plot:
+        plt.show()
+    plt.close()
 
     X_pca_75 = np.dot(X, eig_vecs[:, :num_comp])
     i = 0  # primeira amostra / janela
     print("Features comprimidas (instante 0):", X_pca_75[i])
 
-#EX4.2 ____________________________________________________________________
+    return X_pca_75
 
-def extract_features_by_sensor(data, window_time, overlap):
+def run_PCA_by_activity(sensor, num_sensor, PLOT_PATH, plot = True):
+    os.makedirs(f"{PLOT_PATH}/ex4_3", exist_ok=True)
 
-    # Tamanho da janela e do passo em amostras
-    window_size = int(window_time * FS)
-    step_size = int(window_size * (1 - overlap))
+    print(f"\n=== Iniciando PCA para Sensor {num_sensor} ===")
 
-    # Lista para armazenar as features de cada janela
-    feature_list = []
+    pca_75_list = []
 
-    # Percorrer o sinal criando as janelas
-    for start in range(0, len(data) - window_size + 1, step_size):
-        end = start + window_size
-        window = data[start:end]
+    for act_idx, X in enumerate(sensor, start=1):
+        if X is None or len(X) == 0:
+            print(f"[AVISO] Sensor {num_sensor}, atividade {act_idx}: sem dados.")
+            continue
 
-        # Extrair features da janela (função fornecida pelo utilizador)
-        feats = extract_feature_vector(window)
-        feature_list.append(feats)
+        print(f"\n--- Sensor {num_sensor} | Atividade {act_idx} ---")
+        x_pca_75 = PCA(X, f"pca_{num_sensor}_act{act_idx}", num_sensor, act_idx, plot)  # chamada da tua função original
+        pca_75_list.append(x_pca_75)
 
-    # Converter lista em matriz (n_janelas × n_features)
-    features_matrix = np.vstack(feature_list)
+    print(f"\n[OK] PCA concluído para todas as atividades do sensor {num_sensor}.")
 
-    print("features shape (4.2):", features_matrix.shape)
-    return features_matrix
+    return pca_75_list
 
-def save_features_to_file(all_features_list_norm, filename="features.npy"):
+def plot_global_pca_clusters(pca_75_list, num_activities=16):
     """
-    Guarda as features normalizadas num ficheiro .npy (formato binário do NumPy).
+    Mostra num único gráfico 2D as projeções PCA (75%) de todos os sensores e atividades.
+    Cada cor = atividade, cada marcador = sensor.
     """
-    np.save(filename, np.array(all_features_list_norm, dtype=object))
-    print(f"[OK] Features guardadas em '{filename}' ({len(all_features_list_norm)} sensores).")
+    plt.figure(figsize=(10, 8))
+    colors = plt.cm.tab20(np.linspace(0, 1, num_activities))
+    markers = ['o', 's', '^', 'D', 'P', '*', 'X', 'v']  # diferentes marcadores por sensor
 
-def load_features_from_file(filename="features.npy"):
-    """
-    Lê as features normalizadas de um ficheiro .npy, se existir.
-    Caso contrário, devolve None.
-    """
-    if os.path.exists(filename):
-        data = np.load(filename, allow_pickle=True)
-        print(f"[OK] Features carregadas de '{filename}' ({len(data)} sensores).")
-        return data
-    else:
-        print(f"[INFO] Ficheiro '{filename}' não encontrado.")
-        return None
+    for s_idx, sensor_data in enumerate(pca_75_list):
+        for act_idx, X_pca in enumerate(sensor_data, start=1):
+            X_pca = np.array(X_pca)
+            
+            if X_pca is None or len(X_pca) == 0:
+                continue
+            plt.scatter(X_pca[:, 0], X_pca[:, 1],
+                        s=20, alpha=0.6,
+                        c=[colors[act_idx-1]],
+                        marker=markers[s_idx % len(markers)],
+                        label=f"S{s_idx}-A{act_idx}")
 
-def ex_4_2():
-    print("=== Verificando ficheiro de features ===")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys(), fontsize=7, ncol=3)
 
-    filename = "all_features_norm.npy"
+    plt.title("Projeção PCA Global — Sensores e Atividades")
+    plt.xlabel("Componente Principal 1")
+    plt.ylabel("Componente Principal 2")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(PLOT_PATH + f"/ex4_3/heatMap_pca_75.png", dpi=300, bbox_inches="tight")
+    plt.show()
 
     # Tenta carregar primeiro
     loaded_features = load_features_from_file(filename)
@@ -1288,14 +1453,14 @@ def fisher_score(all_features_norm):
         sensor_score = np.zeros(num_feat)
 
         # TODO: calcular media de todos
-        mu_f = 400  # valor errado
+        mu_f = np.mean(np.vstack(all_features_norm[s]), axis=0)  # valor errado
 
         numerador = np.zeros((NUM_ACTIVITIES, num_feat))
         denominador = np.zeros((NUM_ACTIVITIES, num_feat))
         for a in range(NUM_ACTIVITIES):
             print(f"activity {a}:")
             numerador[a], denominador[a] = act_fisher_score(all_features_norm[s][a], mu_f)
-            print(f"numerador: {numerador[a]}\ndenominador: {denominador[a]}\n")
+            # print(f"numerador: {numerador[a]}\ndenominador: {denominador[a]}\n")
 
         sensor_score = np.sum(numerador, axis=0) / (np.sum(denominador, axis=0) + 1e-8)
         
@@ -1350,8 +1515,8 @@ def ex_4_5(all_features_norm):
 
 def main():
     # EX 2
-    getFiles(PATH)                  # get all the individuals
-    ind = getIndividual(PATH, 0)    # get one individual
+    getFiles(PATH)                   # get all the individuals
+    #ind = getIndividual(PATH, 0)    # get one individual
     #print(calculateModule(ind[0], 1, 3))
 
     create_list_by_sensor()
@@ -1415,9 +1580,14 @@ def main():
     #list_density_2, labels_by_sensor2 = ex_3_7("Gyroscope", 4, False)
     #list_density_3, labels_by_sensor3 = ex_3_7("Magnetometer", 7, False)
 
+    # calculado para n demorar tanto tempo
+    # list_density_1 = [1.1137663331830852, 1.2115522117351214, 1.2957499872220466, 1.2967960035310169, 1.7952385509158766]
+    # list_density_2 = [1.9545680032030541, 1.8585149531789815, 1.3943040471381971, 2.354220166920793, 1.973024834678902]
+    # list_density_3 = [1.025002455171094, 0.7779413589287382, 0.7235597936131203, 0.7327862932348929, 1.1501966729286388]
+
     # heatmap_data = np.array([list_density_1, list_density_2, list_density_3]).T
 
-    # plt.imshow(heatmap_data, cmap='YlOrRd_r', aspect='auto')
+    # plt.imshow(heatmap_data, cmap='YlOrRd', aspect='auto')
     # plt.colorbar(label='Density')
     # plt.title('Outlier Density Heatmap')
     # plt.xlabel('Vector')
@@ -1462,17 +1632,35 @@ def main():
 
     # EX 4.2
     all_features_list_norm = ex_4_2()
+    print(all_features_list_norm[4][14][:,1])
+    print(all_features_list_norm[4][13][:,1])
 
     # EX 4.3 - PCA
 
-    #for i in range(NUM_SENSORS):
-    #    PCA(all_features_list_norm[i], i)
+    pca_filename = "pca_75_list.npy"
+    pca_75_list = load_from_file(pca_filename)
 
-    # EX 4.4
+    num = 0
+    for i in range(5):
+        for act in range(16):
+            num += len(all_features_list_norm[i][act])
+    print("asxfghnjmk",num)
+
+    # if pca_75_list is None:
+    #     pca_75_list = []
+    #     for i in range(NUM_SENSORS):
+    #         x_pca_75 = run_PCA_by_activity(all_features_list_norm[i], i, PLOT_PATH, False)
+    #         pca_75_list.append(pca_75_list)
+    #     save_to_file(pca_75_list, "pca_75_list.npy", "Resultados PCA")
+    # plot_global_pca_clusters(pca_75_list)
+
+    # EX 4.5
     # scores_fs = fisher_score(all_features_list_norm[0], sensors_data[0][:, -1])
+
     # # Ordenar features
     # idx_fs = np.argsort(scores_fs)[::-1]
     # print("Top 10 features por Fisher Score:", idx_fs[:10])
+
 
     # scores_relief = reliefF(all_features_list_norm[0], sensors_data[0][:, -1], k=10)
     # idx_relief = np.argsort(scores_relief)[::-1]
