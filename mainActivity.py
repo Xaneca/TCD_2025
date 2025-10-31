@@ -75,78 +75,7 @@ def all_modules():
 
     return all_mod
 
-def boxPlot_modules(plot = True):
-    outliers = []
-    for activity in range(1, NUM_ACTIVITIES + 1):
-        this_activity_outliers = 0
-        plt.figure(figsize =(10, 7))
-
-        plt.title(f"{activities.loc[activity - 1, 'name']}")
-        for sensor in range(NUM_SENSORS):
-            all_people_data = np.empty((0, NUM_COLUNAS))  # inicializa array vazio com 0 linhas
-            for ind in range(NUM_PEOPLE):
-                arr = individuals[ind][sensor]  # array do indivíduo e sensor atual
-                filtered = arr[arr[:, -1] == activity]
-                all_people_data = np.vstack((all_people_data, filtered))
-
-            for i in range(3):
-                plt.subplot(3, 5, i * 5 + sensor + 1)
-                bp = plt.boxplot(calculateModule(all_people_data, 1 + 3 * i, 3 + 3 * i))
-                outl = bp['fliers'][0].get_ydata()  # bp['fliers'] is a Line2D list
-                this_activity_outliers += len(np.unique(outl))
-        if plot:
-            plt.show()
-
-        plt.close()
-        outliers.append({
-            "num_outliers": this_activity_outliers / 3,
-            "num_points": all_people_data.shape[0]  # número de linhas
-        })
-
-    return outliers
-
-def boxPlot_modules_2(plot = True):
-    outliers = []
-    titles = ["accelerometer", "gyroscope", "magnetometer"]
-
-    #Junta todos os arrays num só array 
-    new_list = []
-    for j in range(NUM_PEOPLE):
-        person = np.vstack(individuals[j])
-        new_list.append(person)
-    all_the_data = np.vstack(new_list)
-    #print(all_the_data.shape)
-
-    
-    for i in range (3):        
-        this_activity_outliers = 0
-        
-        #Cria os arrays com os valores para y e x
-        y_vals = calculateModule(all_the_data, 1 + 3 * i, 3 + 3 * i) #Tira o modulo para um dos vectores
-        #print(y_vals)
-        x_vals = all_the_data[:, 11] #Retira todos os valores de x
-        #print(x_vals)
-        unique_x_vals = np.unique(x_vals) #Vai ver os valores unicos das atividades todas - podemos apenas fazer um array de 1 a 12 para poupar tempo -ver Xana
-
-        #print(len(unique_x_vals))
-        #Vamos agrupar os valores pelo seu x
-        data_per_x = [y_vals[x_vals == x] for x in unique_x_vals]
-        #print(len(data_per_x))
-
-        #Imprime o boxplot
-        plt.figure(figsize =(10, 7))
-        plt.title(f"Boxplots de atividades para o modulo do vetor {titles[i]}")
-        bp = plt.boxplot(data_per_x, positions=unique_x_vals, widths=0.6)
-        
-
-        plt.xticks(unique_x_vals, [int(x) for x in unique_x_vals]) #Força os valores de x a aparecerem como interiros
-        plt.xlabel("Atividade")
-        plt.ylabel(f"Valor do modulo do {titles[i]}")
-        plt.grid(True)
-        plt.show()
-
-
-def boxPlot_modules_3(plot = True, save = False):
+def boxPlot_modules(plot = True, save = False):
     outliers = [] #Lista que vai receber o número de outliers de todos os sensores e atividades
 
     #Junta todos os arrays num só array 
@@ -271,7 +200,8 @@ def z_scores(data, k=None):
     # Calcular média e desvio padrão por coluna (axis=0)
     mean = np.mean(data, axis=0)
     std_dev = np.std(data, axis=0)
-    std_dev[std_dev == 0] = 1e-8  # evitar divisão por zero
+    if std_dev == 0:
+        std_dev = 1e-8  # evitar divisão por zero
 
     # Normalização vetorizada
     z = (data - mean) / std_dev
@@ -312,7 +242,7 @@ def show_outliers(start_idx, k, title, plot = True, save = False):
         this_sensor = sensors_data[s]
         y = calculateModule(this_sensor, start_idx, start_idx + 2)
         x = this_sensor[:,-1]   # activity value
-        outliers_mask = z_scores(y, k)
+        outliers_mask, _ = z_scores(y, k)
 
         for act in np.unique(x):
             mask = x == act
@@ -327,7 +257,8 @@ def show_outliers(start_idx, k, title, plot = True, save = False):
         colors.extend(np.where(outliers_mask, "red", "blue"))
         #print(colors[:50])
         plt.figure(figsize = (8,5))
-        plt.scatter(x, y, c=colors, s=10, alpha=0.6)
+        plt.scatter(x[~outliers_mask], y[~outliers_mask], c="blue", s=10, alpha=0.6, label="Normais")
+        plt.scatter(x[outliers_mask], y[outliers_mask], c="red", s=10, alpha=0.6, label="Outliers")
         plt.xticks(range(1, NUM_ACTIVITIES + 1))
         plt.title(f"{title} for Sensor {titles_sensors[s]}")
         plt.xlabel("Activity")
@@ -444,20 +375,6 @@ def graph_3d(centroids, data, labels, outliers, vec = "Default", sensor = "6", p
         plt.show()
     plt.savefig(PLOT_PATH + "/ex3_7" + f"/kmeans_{vec}_{sensor}.png", dpi=300, bbox_inches="tight")  # png, 300dpi, remove extra whitespace
     plt.close()
-    
-def calculate_outliers_centroids(distances, k, labels):
-    # Retira o valor minimo de cada linha de distances e mantém no formato 2d ou seja (n_amostras, 1) com o keepdims
-    distance_from_centroid = np.min(distances, axis=1, keepdims=True) 
-
-    # 1 se maior que y, 0 caso contrário
-    sinalizacao = (distance_from_centroid > limit).astype(int)
-
-    outliers = np.hstack([distance_from_centroid, sinalizacao])
-    print(outliers)
-
-    n_outliers = np.sum(outliers[:, 1] == 1)
-
-    return n_outliers, outliers
 
 def calculate_outliers_by_centroids(distances, k, labels):
 
@@ -490,6 +407,49 @@ def calculate_outliers_by_centroids(distances, k, labels):
     n_outliers = np.sum(sinalizacao)
 
     return n_outliers, outliers, distances.shape[0] # pontos totais
+
+def matrix_by_sensor(sensor_index, labels):
+    number_labels = np.unique(labels[sensor_index])
+    number_activities, counts = np.unique(sensors_data[sensor_index][:, -1], return_counts=True)
+    counts_dict = dict(zip(number_activities, counts))
+
+    # Cria uma matriz 16x16 inicializada com zeros
+    matriz = np.zeros((len(number_activities), len(number_activities)), dtype=int)
+
+    # Preenche a matriz com contagens
+    for a, b in zip(labels[sensor_index], sensors_data[sensor_index][:, -1]):
+        matriz[a, int(b-1)] += 1   # -1 porque os índices começam em 0
+
+    for i in range(matriz.shape[0]):
+        valor = i + 1  # porque as classes começam em 1
+        if valor in counts_dict:
+            matriz[i, :] = (matriz[i, :] / counts_dict[valor]) * 100 
+
+    # Visualização
+    fig, ax = plt.subplots(figsize=(12, 10))
+    im = ax.imshow(matriz, cmap="Blues")
+
+    # Adiciona rótulos
+    ax.set_xticks(np.arange(len(number_activities)))
+    ax.set_yticks(np.arange(len(number_activities)))
+    ax.set_xticklabels(np.arange(1, len(number_activities) + 1))
+    ax.set_yticklabels(np.arange(1, len(number_activities) + 1))
+
+    # Mostra o valor dentro de cada célula
+    for i in range(len(number_activities)):
+        for j in range(len(number_activities)):
+            ax.text(j, i, f"{matriz[i, j]:.1f}%",   # mostra com 1 casa decimal e o símbolo %
+                    ha="center", va="center",
+                    color="black" if matriz[i, j] < matriz.max()/2 else "white")
+
+    # Títulos e labels
+    ax.set_xlabel("Labels da Lista 2 (Preditas)")
+    ax.set_ylabel("Labels da Lista 1 (Verdadeiras)")
+    ax.set_title("Matriz 16x16 - Contagem de combinações de labels")
+
+    plt.colorbar(im)
+    plt.tight_layout()  # adiciona espaço entre elementos
+    plt.show()
 
 def ex_3_7(vec, ind_start, plot = True):
     # before
@@ -551,34 +511,26 @@ def inject_outliers(data, k, percentage, z):
 
     # Caso contrário, injetar novos outliers
     target_outliers = int(percentage/100 * total)
-    print(current_outliers)
-    print(target_outliers)
     n_to_inject = target_outliers - current_outliers
-    print(n_to_inject)
 
     # Escolher índices aleatórios que não sejam já outliers
     candidate_indices = np.where(~outlier_mask)[0]
     candidate_indices = candidate_indices[candidate_indices >= 100]
     np.random.shuffle(candidate_indices)
     inject_indices = candidate_indices[:n_to_inject]
-    print(inject_indices)
 
     # s ∈ {-1, +1}
     s = np.random.choice([-1, 1], size=n_to_inject)
-    print(s.shape)
 
     # q ∈ [0, z)
     q = np.random.uniform(0, z, size=n_to_inject)
-    print(q.shape)
 
     # Aplicar fórmula: μ + s × k × (σ + q)
     new_values = mean + s * k * (std_dev + q)
-    print(new_values.shape)
 
     # Injetar os novos valores
     new_values_1d = new_values.ravel()
     data[inject_indices] = new_values_1d.reshape(-1, 1)
-    print(data[inject_indices].shape)
 
     all_outlier_indices = np.sort(
         np.concatenate((current_outlier_indices, inject_indices))
@@ -879,6 +831,16 @@ def plot_outlier_replacement_together(data, outlier_indices, y_prev):
     plt.grid(True)
     plt.show()
 
+def distribuition_of_prediction_errors(y, y_prev):
+    errors = y - y_prev 
+
+    plt.figure(figsize=(8,4))
+    plt.hist(errors, bins=30, edgecolor='k')
+    plt.xlabel("Erro de predição")
+    plt.ylabel("Frequência")
+    plt.title("Distribuição do erro de predição")
+    plt.show()
+
 def ex_3_10(modules_acceleration):
 
     '''
@@ -922,6 +884,8 @@ def ex_3_10(modules_acceleration):
     np.sort(outlier_indices)
     x1, y1 = generate_windows_outliers(modules_acceleration, outlier_indices, 100)
     y_prev = linear_model_predict(x1, beta)
+
+    distribuition_of_prediction_errors(y1, y_prev)
 
     modules_acceleration_no_outliers = removes_outliers_for_predictions(modules_acceleration, outlier_indices, y_prev)
 
@@ -1458,7 +1422,7 @@ def fisher_score(all_features_norm):
         numerador = np.zeros((NUM_ACTIVITIES, num_feat))
         denominador = np.zeros((NUM_ACTIVITIES, num_feat))
         for a in range(NUM_ACTIVITIES):
-            print(f"activity {a}:")
+            # print(f"activity {a}:")
             numerador[a], denominador[a] = act_fisher_score(all_features_norm[s][a], mu_f)
             # print(f"numerador: {numerador[a]}\ndenominador: {denominador[a]}\n")
 
@@ -1564,7 +1528,7 @@ def main():
     create_list_by_sensor()
 
     # EX 3.1
-    #num_outliers_per_sensor = boxPlot_modules_3(plot = False, save = False)  #This is the right one
+    #num_outliers_per_sensor = boxPlot_modules(plot = False, save = False)  #This is the right one
 
     #print(num_outliers_per_sensor)
     
@@ -1575,49 +1539,14 @@ def main():
     # created: z_scores()
 
     # EX 3.4
-    k = 4       # 3 ; 3.5 ; 4
+    #k = 4       # 3 ; 3.5 ; 4
 
-    # ex_3_4(k, plot = False, save = True)
+    #ex_3_4(k, plot = False, save = False)
 
     # EX 3.6 e 3.7 ----------------------------------
-    # list_density_1, labels_by_sensor1 = ex_3_7("Accelerometer", 1, False)
-    # number_labels = np.unique(labels_by_sensor1[0])
-    # number_activities = np.unique(sensors_data[1][:, -1])
-    # print(number_labels)
-    # print(number_activities)
-
-    # # Cria uma matriz 16x16 inicializada com zeros
-    # matriz = np.zeros((len(number_activities), len(number_activities)), dtype=int)
-
-    # # Preenche a matriz com contagens
-    # for a, b in zip(labels_by_sensor1[0], sensors_data[1][:, -1]):
-    #     matriz[a, int(b-1)] += 1   # -1 porque os índices começam em 0
-
-    # # Visualização
-    # fig, ax = plt.subplots(figsize=(12, 10))
-    # im = ax.imshow(matriz, cmap="Blues")
-
-    # # Adiciona rótulos
-    # ax.set_xticks(np.arange(len(number_activities)))
-    # ax.set_yticks(np.arange(len(number_activities)))
-    # ax.set_xticklabels(np.arange(1, len(number_activities) + 1))
-    # ax.set_yticklabels(np.arange(1, len(number_activities) + 1))
-
-    # # Mostra o valor dentro de cada célula
-    # for i in range(len(number_activities)):
-    #     for j in range(len(number_activities)):
-    #         ax.text(j, i, matriz[i, j],
-    #                 ha="center", va="center",
-    #                 color="black" if matriz[i, j] < matriz.max()/2 else "white")
-
-    # # Títulos e labels
-    # ax.set_xlabel("Labels da Lista 2 (Preditas)")
-    # ax.set_ylabel("Labels da Lista 1 (Verdadeiras)")
-    # ax.set_title("Matriz 16x16 - Contagem de combinações de labels")
-
-    # plt.colorbar(im)
-    # plt.tight_layout()  # adiciona espaço entre elementos
-    # plt.show()
+    #list_density_1, labels_by_sensor1 = ex_3_7("Accelerometer", 1, False)
+    #Faz para o sensor 0 apenas ou seja Pulso esquerdo
+    #matrix_by_sensor(0, labels_by_sensor1) # Imprime uma tabela que compara a posição dos pontos nos clusters efetuados pelo kmeans e a distribuição real desses pontos
 
     #list_density_2, labels_by_sensor2 = ex_3_7("Gyroscope", 4, False)
     #list_density_3, labels_by_sensor3 = ex_3_7("Magnetometer", 7, False)
@@ -1674,19 +1603,19 @@ def main():
 
     # EX 4.2
     all_features_list_norm = ex_4_2()
-    print(all_features_list_norm[4][14][:,1])
-    print(all_features_list_norm[4][13][:,1])
+    # print(all_features_list_norm[4][14][:,1])
+    # print(all_features_list_norm[4][13][:,1])
 
-    # EX 4.3 - PCA
+    # # EX 4.3 - PCA
 
-    pca_filename = "pca_75_list.npy"
-    pca_75_list = load_from_file(pca_filename)
+    # pca_filename = "pca_75_list.npy"
+    # pca_75_list = load_from_file(pca_filename)
 
-    num = 0
-    for i in range(5):
-        for act in range(16):
-            num += len(all_features_list_norm[i][act])
-    print("asxfghnjmk",num)
+    # num = 0
+    # for i in range(5):
+    #     for act in range(16):
+    #         num += len(all_features_list_norm[i][act])
+    # print("asxfghnjmk",num)
 
     # if pca_75_list is None:
     #     pca_75_list = []
@@ -1697,18 +1626,15 @@ def main():
     # plot_global_pca_clusters(pca_75_list)
 
     # EX 4.5
-    # scores_fs = fisher_score(all_features_list_norm[0], sensors_data[0][:, -1])
+    scores_fs = fisher_score(all_features_list_norm)
 
     # # Ordenar features
-    # idx_fs = np.argsort(scores_fs)[::-1]
-    # print("Top 10 features por Fisher Score:", idx_fs[:10])
+    for l in range (NUM_SENSORS):
+        idx_fs = np.argsort(scores_fs[l])[::-1]
+        print("Top 10 features por Fisher Score:", idx_fs[:10])
 
 
-    # scores_relief = reliefF(all_features_list_norm[0], sensors_data[0][:, -1], k=10)
-    # idx_relief = np.argsort(scores_relief)[::-1]
-    # print("Top 10 features por ReliefF:", idx_relief[:10])
-
-    ex_4_5(all_features_list_norm)
+    #ex_4_5(all_features_list_norm)
 
     return
 
