@@ -1579,6 +1579,28 @@ def ex_4_5(all_features_norm):
 
     return
 
+def act_distribution_per_ind(ind):
+    # ind é numpy
+    print(ind[0])
+    ind = np.array(ind)
+    dist_act = []
+
+    #np.sum(dados[:, coluna] == valor)
+    for a in range(NUM_ACTIVITIES):
+        dist_act.append(np.sum(ind[:, -1] == a))
+    
+    return dist_act
+
+def act_distribution():
+    dist_act = []
+    for p in individuals:
+        p_act = act_distribution_per_ind(p)
+        dist_act.append(p_act)
+    
+    dist_act = np.array(dist_act)
+    print(dist_act)
+
+
 def main():
     # EX 2
     getFiles(PATH)                   # get all the individuals
@@ -1601,8 +1623,8 @@ def main():
     # EX 3.4
     k = 3       # 3 ; 3.5 ; 4
 
-    results = ex_3_4(k, plot = False, save = True)
-    plot_z_outlier_heatmap_from_list(results, save=True, plot=True)
+    # results = ex_3_4(k, plot = False, save = True)
+    # plot_z_outlier_heatmap_from_list(results, save=True, plot=True)
 
     # EX 3.6 e 3.7 ----------------------------------
     # list_density_1, labels_by_sensor1 = ex_3_7("Accelerometer", 1, False)
@@ -1698,9 +1720,9 @@ def main():
     # ex_4_1()
 
     # EX 4.2
-    # all_features_list_norm = ex_4_2()
-    # print(all_features_list_norm[4][14][:,1])
-    # print(all_features_list_norm[4][13][:,1])
+    all_features_list_norm = ex_4_2()
+    print(all_features_list_norm[4][14][:,1])
+    #print(all_features_list_norm[4][13][:,1])
 
     # # EX 4.3 - PCA
 
@@ -1722,7 +1744,7 @@ def main():
     # plot_global_pca_clusters(pca_75_list)
 
     # EX 4.5
-    # scores_fs = fisher_score(all_features_list_norm[0], sensors_data[0][:, -1])
+    #scores_fs = fisher_score(all_features_list_norm)
 
     # # Ordenar features
     # idx_fs = np.argsort(scores_fs)[::-1]
@@ -1734,6 +1756,13 @@ def main():
     # print("Top 10 features por ReliefF:", idx_relief[:10])
 
     # ex_4_5(all_features_list_norm)
+
+    ################################################################################
+    #                                B                                             #
+    ################################################################################
+
+    # ver distribuiçao de amostras de cada atividade por sujeito
+    act_distribution()
 
     return
 
