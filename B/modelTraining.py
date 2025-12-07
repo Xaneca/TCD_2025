@@ -319,8 +319,8 @@ def createFolds(X, y, n_folds=10, n_repeats=10):
             "y_train": dic_1["y_train"],
             "X_test": X_test,
             "y_test": y_test,
-            "X_val": dic_1["X_val"],
-            "y_val": dic_1["y_val"]}
+            "X_val": dic_1["X_test"],
+            "y_val": dic_1["y_test"]}
         
         folds.append(dic_2)
         
@@ -396,7 +396,7 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
 
             bfs = featureRanking(X_train, y_train, X_val, y_val, model, default_parameter, plot=False, printing=False)
 
-            best_parameters = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[m])
+            best_parameters = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
 
             score = classifier_model(model, X_train_orig[:, bfs], y_train_orig, X_test[:, bfs], y_test, printing=False, params=best_parameters)["f1-score"]
 
@@ -408,14 +408,16 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
 
     best_model = chooseModel(f1_all_folds)
 
-    return
+    return best_model
 
 def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED):
     if split_scheme == "TVT":
         return train_tvt(X, y, model, parameters, filename, random_state=random_state, label=label)
     elif split_scheme == "CV":
         if len(model) != len(parameters):
-            print("És burro")
-        train_cv(X, y, model, parameters, filename, random_state=random_state)
+            print("És burro e gordo")
+        best_model = train_cv(X, y, model, parameters, filename, random_state=random_state)
+
+        print(best_model)
 
     return
