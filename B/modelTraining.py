@@ -144,12 +144,18 @@ def save_model(model, filename):
 
 ##############################################################################
 
-def compute_feature_ranking(X, y):
+def compute_feature_ranking(X, y, printing=True):
     relief = ReliefF(n_neighbors=20)
     relief.fit(X, y)
     scores = relief.feature_importances_
 
-    return np.argsort(scores)[::-1]     # ordem decrescente
+    scores = np.argsort(scores)[::-1]
+
+    if printing:
+        print("Score:")
+        print(scores)
+
+    return scores     # ordem decrescente
 
 def metrics_summary_features(metrics_list):
     n_features = [m['n_features'] for m in metrics_list]
@@ -182,11 +188,7 @@ def pick_first_param_values(param_grid):
             new_grid[key] = values
     return new_grid
 
-def featureRanking(X_train, y_train, X_test, y_test, model, params=None, plot=True, printing=True):
-    scores = compute_feature_ranking(X_train, y_train)
-    if printing:
-        print("Score:")
-        print(scores)
+def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None, plot=True, printing=True):
 
     metrics_list = []
 
@@ -202,7 +204,8 @@ def featureRanking(X_train, y_train, X_test, y_test, model, params=None, plot=Tr
         metrics_list.append(metrics)
 
     df_feat = metrics_summary_features(metrics_list)
-    display(df_feat)
+    if printing:
+        display(df_feat)
 
     best_idx = df_feat['f1'].idxmax()
     best_n = df_feat.loc[best_idx, 'n_features']
@@ -222,7 +225,7 @@ def featureRanking(X_train, y_train, X_test, y_test, model, params=None, plot=Tr
         plt.grid(True)
         plt.show()
     
-    return best_features
+    return best_features, metrics_list
 
 
 def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
@@ -233,6 +236,8 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
     valores = list(param_grid.values())
     best_score = -1
     best_params = None
+
+    params_list = []
 
     # ver nº total de combinaçoes
     total_combs = 1
@@ -255,6 +260,7 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
             )
 
             score = metrics["f1-score"]   # AJUSTAR SE NECESSÁRIO
+            params_list.append([params, metrics])
 
             if score > best_score:
                 best_score = score
@@ -262,7 +268,7 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
 
         print("Best Parameters:", best_params)
 
-        return best_params, best_score
+        return best_params, best_score, params_list
     else:
         params = {k: v[0] for k, v in param_grid.items()}
 
@@ -279,19 +285,48 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
         print("Parameters:", params)
 
         score = metrics["f1-score"]
-        return params, score
+        return params, score, [params, metrics]
     
-def deployModel(X_train_orig, y_train_orig, X_test, y_test, model, bfs, parameters, filename, label = "",):
+def choose_average_param_bfs(all_metrics, flag):
+    param_bfs_all = {}
+    for scores, metrics in all_metrics:
+        for i in range(len(scores)):
+            rank = f"{scores[:i+1]}"
+            if rank in param_bfs_all:
+                param_bfs_all[rank].append(metrics[i]['f1-score'])
+            else:
+                param_bfs_all[rank] = [metrics[i]['f1-score']]
+    
+    best_score = 0
+    param_bfs = None
+    for key, values in param_bfs_all.items():
+        media = np.mean(values)
+        if media > best_score:
+            best_score = media
+            param_bfs = key
+
+    if flag == "bfs":
+        texto = param_bfs.strip("[]")
+        # separa pelos espaços
+        result = [int(x) for x in texto.split()]
+    else:
+        result = ast.literal_eval(param_bfs)
+
+    
+    return result, best_score
+
+    
+def deployModel(X_train, y_train, X_test, y_test, model, bfs, parameters, filename, label = "",):
     
     clf = reset_model(model)
 
     # model, X_train, y_train, X_test, y_test, label = "", printing=True
-    metrics = classifier_model(clf, X_train_orig[:, bfs], y_train_orig, X_test[:,bfs], y_test, label=label, printing=True)
+    metrics = classifier_model(clf, X_train[:, bfs], y_train, X_test[:,bfs], y_test, label=label, printing=True)
 
     clf = reset_model(model)
 
-    X_train = np.vstack((X_train_orig, X_test))         # vertical stack
-    y_train = np.concatenate((y_train_orig, y_test))    # concatenate because 1 dimension
+    X_train = np.vstack((X_train, X_test))         # vertical stack
+    y_train = np.concatenate((y_train, y_test))    # concatenate because 1 dimension
 
     clf.fit(X_train, y_train)
 
@@ -326,7 +361,7 @@ def createFolds(X, y, n_folds=10, n_repeats=10):
         
     return folds
 
-def chooseModel(f1_all_folds):
+def chooseModel(f1_all_folds, printing=True):
     """
     Recebe uma lista de dicionários com F1-scores por fold e modelo.
     Calcula média e desvio padrão de cada modelo, imprime num DataFrame,
@@ -340,9 +375,12 @@ def chooseModel(f1_all_folds):
         "Mean_F1": df_f1.mean(),
         "Std_F1": df_f1.std()
     })
+
+    df_f1.to_csv("./graphics/cv_models.csv")
     
     # Mostrar
-    display(stats_df)
+    if printing:
+        display(stats_df)
     
     # Modelo com maior média
     best_model = stats_df["Mean_F1"].idxmax()
@@ -361,12 +399,14 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label=""):
 
     default_parameters = pick_first_param_values(parameters)
 
-    bfs = featureRanking(X_train, y_train, X_val, y_val, model, params=default_parameters)
-    best_parameters = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters)
+    scores = compute_feature_ranking(X_train, y_train, printing=True)
+
+    bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, params=default_parameters)
+    best_parameters, _, _ = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters)
     metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
     return metrics
 
-def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10):
+def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label=""):
     folds = createFolds(X, y, 10, 10)
 
     f1_all_folds = []
@@ -384,19 +424,18 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
         y_train = fold["y_train"]
         X_test = fold["X_test"]
         y_test = fold["y_test"]
-        X_val = ["X_val"]
-        y_val = ["y_val"]
+        X_val = fold["X_val"]
+        y_val = fold["y_val"]
 
-        default_parameter = pick_first_param_values(parameters[0])
-
-        bfs = featureRanking(X_train, y_train, X_val, y_val, models[0], default_parameter, plot=False, printing=False)
+        scores = compute_feature_ranking(X_train, y_train, printing=False)
+        
         m = 0
         for modelName, model in models.items():            
-            default_parameter = pick_first_param_values(parameters[m])
+            default_parameter = pick_first_param_values(parameters[modelName])
 
-            bfs = featureRanking(X_train, y_train, X_val, y_val, model, default_parameter, plot=False, printing=False)
+            bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False)
 
-            best_parameters = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
+            best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
 
             score = classifier_model(model, X_train_orig[:, bfs], y_train_orig, X_test[:, bfs], y_test, printing=False, params=best_parameters)["f1-score"]
 
@@ -406,9 +445,53 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
         
         f1_all_folds.append(f1_this_fold_models)
 
-    best_model = chooseModel(f1_all_folds)
+    best_model = chooseModel(f1_all_folds, printing=True)
 
-    return best_model
+    print(models[best_model])
+
+    return models[best_model], parameters[best_model]
+
+def deployment_cv(X, y, model, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label=""):
+    folds = createFolds(X, y, 10, 10)
+
+    f1_all_folds = []
+
+    bfs_metrics = []
+
+    f = 0
+    for fold in folds:
+        print(f"Fold {f}")
+        f+=1
+
+        X_train_orig = fold["X_train_orig"]
+        y_train_orig = fold["y_train_orig"]
+        X_test = fold["X_test"]
+        y_test = fold["y_test"]
+        
+        scores = compute_feature_ranking(X_train_orig, y_train_orig, printing=False)
+                  
+        default_parameter = pick_first_param_values(parameters)
+
+        bfs, metrics = featureRanking(X_train_orig, y_train_orig, X_test, y_test, model, scores, default_parameter, plot=False, printing=False)
+
+        bfs_metrics.append([scores, metrics])
+    
+    bfs_final, bfs_score = choose_average_param_bfs(bfs_metrics, "bfs")
+    print(bfs_final, bfs_score)
+
+
+    parameters_metrics = []
+    for fold in folds:
+        best_parameters, score, params_list = chooseParameters(X_train_orig, y_train_orig, X_test, y_test, model, bfs_final, parameters)
+
+        parameters_metrics.append([score, best_parameters])
+
+    best_parameters, _ = choose_average_param_bfs(parameters_metrics, "param")
+
+    metrics = deployModel(X_train_orig, y_train_orig, X_test, y_test, model, bfs, best_parameters, filename, label=label)
+
+    return metrics
+
 
 def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED):
     if split_scheme == "TVT":
@@ -416,8 +499,9 @@ def run_model(X, y, model, split_scheme, parameters, filename, label="", random_
     elif split_scheme == "CV":
         if len(model) != len(parameters):
             print("És burro e gordo")
-        best_model = train_cv(X, y, model, parameters, filename, random_state=random_state)
+        best_model, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label)
+        metrics = deployment_cv(X, y, best_model, parameters, filename, random_state=random_state, label=label)
 
-        print(best_model)
+        return metrics
 
-    return
+    return -1
