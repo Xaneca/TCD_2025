@@ -287,7 +287,7 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
         score = metrics["f1-score"]
         return params, score, [params, metrics]
     
-def choose_average_param_bfs(all_metrics, flag):
+def choose_average_bfs(all_metrics):
     param_bfs_all = {}
     for scores, metrics in all_metrics:
         for i in range(len(scores)):
@@ -305,16 +305,33 @@ def choose_average_param_bfs(all_metrics, flag):
             best_score = media
             param_bfs = key
 
-    if flag == "bfs":
-        texto = param_bfs.strip("[]")
-        # separa pelos espaços
-        result = [int(x) for x in texto.split()]
-    else:
-        result = ast.literal_eval(param_bfs)
+    texto = param_bfs.strip("[]")
+    # separa pelos espaços
+    result = [int(x) for x in texto.split()]
 
-    
     return result, best_score
 
+
+def choose_average_params(all_metrics):
+    param_bfs_all = {}
+    for scores, metrics in all_metrics:
+        rank = f"{scores}"
+        if rank in param_bfs_all:
+            param_bfs_all[rank].append(metrics)
+        else:
+            param_bfs_all[rank] = [metrics]
+    
+    best_score = 0
+    param_bfs = None
+    for key, values in param_bfs_all.items():
+        media = np.mean(values)
+        if media > best_score:
+            best_score = media
+            param_bfs = key
+
+    result = ast.literal_eval(param_bfs)
+
+    return result, best_score
     
 def deployModel(X_train, y_train, X_test, y_test, model, bfs, parameters, filename, label = "",):
     
@@ -476,7 +493,7 @@ def deployment_cv(X, y, model, parameters, filename, random_state = SEED, n_fold
 
         bfs_metrics.append([scores, metrics])
     
-    bfs_final, bfs_score = choose_average_param_bfs(bfs_metrics, "bfs")
+    bfs_final, bfs_score = choose_average_bfs(bfs_metrics)
     print(bfs_final, bfs_score)
 
 
@@ -484,9 +501,11 @@ def deployment_cv(X, y, model, parameters, filename, random_state = SEED, n_fold
     for fold in folds:
         best_parameters, score, params_list = chooseParameters(X_train_orig, y_train_orig, X_test, y_test, model, bfs_final, parameters)
 
-        parameters_metrics.append([score, best_parameters])
+        parameters_metrics.append([best_parameters, score])
 
-    best_parameters, _ = choose_average_param_bfs(parameters_metrics, "param")
+    print(parameters_metrics)
+
+    best_parameters, _ = choose_average_params(parameters_metrics)
 
     metrics = deployModel(X_train_orig, y_train_orig, X_test, y_test, model, bfs, best_parameters, filename, label=label)
 
