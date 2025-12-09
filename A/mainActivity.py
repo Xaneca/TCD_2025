@@ -35,6 +35,8 @@ sensors_data = []
 
 people_data = []
 
+people_sensor_data = []
+
 def getFiles(path):
     for i in range(NUM_PEOPLE):
         ind = []
@@ -134,6 +136,18 @@ def create_list_by_sensor():
             new_list.append(individuals[j][k])
         all_the_data = np.vstack(new_list)
         sensors_data.append(all_the_data) 
+
+def create_list_by_people_and_sensor():
+    #all_by_sensor = []
+    for k in range (NUM_PEOPLE):
+        new_list = []
+        for j in range(NUM_SENSORS):
+            new_list.append(individuals[k][j])
+        people_sensor_data.append(new_list) 
+
+    print(len(people_sensor_data))
+    print(len(people_sensor_data[0]))
+
 
 def create_list_complete():
     for j in range(NUM_PEOPLE):
@@ -1260,6 +1274,77 @@ def ex_4_2():
 
     return all_features_list_norm
 
+def ex_4_2_person_sensor():
+    print("=== Verificando ficheiro de features ===")
+
+    filename = "all_features_norm_person_sensor.npy"
+
+    # Tenta carregar primeiro
+    loaded_features = load_from_file(filename)
+
+    if loaded_features is not None:
+        print("[OK] Features já existentes foram carregadas.")
+        all_features_list_norm = loaded_features
+
+    else:
+        print("[INFO] Ficheiro não encontrado. Criando features...")
+
+        all_features_list = []
+
+        for i in range(NUM_PEOPLE):
+            print(f"\nPerson {i}:")
+            person_data = people_sensor_data[i]
+            features_by_sensor = []
+            for l in range(NUM_SENSORS):
+                sensor_data = person_data[l]
+                X = sensor_data[:, :-1]     # dados do sensor
+                labels = sensor_data[:, -1] # labels (1–16)
+
+                sensor_features_by_activity = []
+
+                for act in range(1, NUM_ACTIVITIES + 1):
+                    print(f"\tAtividade {act}...")
+
+                    # Selecionar apenas as amostras desta atividade
+                    act_data = X[labels == act]
+
+                    # Extrair features por janelas (2 s, 50% overlap)
+                    matrix = extract_features_by_sensor(act_data, 2, 0.5)
+
+                    sensor_features_by_activity.append(matrix)
+
+                features_by_sensor.append(sensor_features_by_activity)
+
+            all_features_list.append(features_by_sensor)
+
+        # Converter tudo em numpy (estrutura 5 × 16, com matrizes internas)
+        all_features_list = np.array(all_features_list, dtype=object)
+
+        # print("\nNormalizando:")
+        # all_features_list_norm = []
+
+        # for i in range(NUM_PEOPLE):
+        #     print(f"\tPerson: {i}")
+        #     norm_sensor_features = []
+        #     for l in range(NUM_SENSORS):
+        #         for act in range(NUM_ACTIVITIES):
+        #             _, z = z_scores(all_features_list[i][l][act])
+        #             norm_sensor_features.append(z)
+
+        #         all_features_list_norm.append(norm_sensor_features)
+
+        all_features_list_norm = np.array(all_features_list, dtype=object)
+
+        # Guardar no ficheiro
+        save_to_file(all_features_list_norm, filename)
+        print(f"[OK] Features criadas e guardadas em '{filename}'.")
+
+    # Exemplo de confirmação
+    print("\nExemplo de shape:")
+    print("Pessoa 0, Sensor 0, Atividade 0 ->", all_features_list_norm[0][0].shape)
+
+    return all_features_list_norm
+
 # EX 4.3
 
 def PCA(X, name_file, num_sensor, num_act, plot = True):
@@ -1548,7 +1633,9 @@ def main():
     #ind = getIndividual(PATH, 0)    # get one individual
     #print(calculateModule(ind[0], 1, 3))
 
-    create_list_by_sensor()
+    #create_list_by_sensor()
+
+    create_list_by_people_and_sensor()
 
     # EX 3.1
     #num_outliers_per_sensor = boxPlot_modules(plot = False, save = False)  #This is the right one
@@ -1563,10 +1650,10 @@ def main():
 
     # EX 3.4
 
-    k = 3       # 3 ; 3.5 ; 4
+    # k = 3       # 3 ; 3.5 ; 4
 
-    results = ex_3_4(k, plot = False, save = True)
-    plot_z_outlier_heatmap_from_list(results, save=True, plot=True)
+    # results = ex_3_4(k, plot = False, save = True)
+    # plot_z_outlier_heatmap_from_list(results, save=True, plot=True)
 
     # EX 3.6 e 3.7 ----------------------------------
     #list_density_1, labels_by_sensor1 = ex_3_7("Accelerometer", 1, False)
@@ -1628,7 +1715,8 @@ def main():
 
     # EX 4.2
 
-    all_features_list_norm = ex_4_2()
+    #all_features_list_norm = ex_4_2()
+    all_features_list = ex_4_2_person_sensor()
 
     # print(all_features_list_norm[4][14][:,1])
     # print(all_features_list_norm[4][13][:,1])
@@ -1653,12 +1741,12 @@ def main():
     # plot_global_pca_clusters(pca_75_list)
 
     # EX 4.5
-    scores_fs = fisher_score(all_features_list_norm)
+    #scores_fs = fisher_score(all_features_list_norm)
 
     # # Ordenar features
-    for l in range (NUM_SENSORS):
-        idx_fs = np.argsort(scores_fs[l])[::-1]
-        print("Top 10 features por Fisher Score:", idx_fs[:10])
+    #for l in range (NUM_SENSORS):
+        #idx_fs = np.argsort(scores_fs[l])[::-1]
+        #print("Top 10 features por Fisher Score:", idx_fs[:10])
 
 
 
