@@ -188,7 +188,7 @@ def pick_first_param_values(param_grid):
             new_grid[key] = values
     return new_grid
 
-def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None, plot=True, printing=True):
+def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None, plot=True, printing=True, save=True, filename=None, title=None):
 
     metrics_list = []
 
@@ -215,15 +215,18 @@ def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None,
         print(f"TOP {len(best_features)} features")
         print("BEST FEATURES", best_features)
 
+    # Plot do F1
+    plt.figure(figsize=(6,4))
+    plt.plot(df_feat['n_features'], df_feat['f1'], marker='o')
+    plt.xlabel("Número de features")
+    plt.ylabel("F1-Score")
+    plt.title(f"F1-Score/nº features {title}")
+    plt.grid(True)
+    if save:
+        plt.savefig(filename)
     if plot:
-        # Plot do F1
-        plt.figure(figsize=(6,4))
-        plt.plot(df_feat['n_features'], df_feat['f1'], marker='o')
-        plt.xlabel("Número de features")
-        plt.ylabel("F1-Score")
-        plt.title("F1-Score por número de features selecionadas")
-        plt.grid(True)
         plt.show()
+    plt.close()
     
     return best_features, metrics_list
 
@@ -407,7 +410,7 @@ def chooseModel(f1_all_folds, printing=True):
 
 ######################################################################
 
-def train_tvt(X, y, model, parameters, filename, random_state = SEED, label=""):
+def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", featureRanking = True):
     dic = split_set(X, y, random_state=random_state)
     X_train = dic["X_train"]
     X_val = dic["X_val"]
@@ -418,12 +421,15 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label=""):
 
     scores = compute_feature_ranking(X_train, y_train, printing=True)
 
-    bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, params=default_parameters)
+    if featureRanking:
+        bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, params=default_parameters, save=True, title="TVT", filename="./ElbowGraphs/iris/tvt/elbow_graph.png")
+    else:
+        bfs = scores
     best_parameters, _, _ = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters)
     metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
     return metrics
 
-def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label=""):
+def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", featureRanking=True):
     folds = createFolds(X, y, 10, 10)
 
     f1_all_folds = []
@@ -450,7 +456,10 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
         for modelName, model in models.items():            
             default_parameter = pick_first_param_values(parameters[modelName])
 
-            bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False)
+            if featureRanking:
+                bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=f"./ElbowGraphs/iris/cv/fold_{f}_{modelName}.png")
+            else:
+                bfs = scores
 
             best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
 
@@ -466,9 +475,9 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
 
     print(models[best_model])
 
-    return models[best_model], parameters[best_model]
+    return models[best_model], best_model, parameters[best_model]
 
-def deployment_cv(X, y, model, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label=""):
+def deployment_cv(X, y, model, modelName, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label=""):
     folds = createFolds(X, y, 10, 10)
 
     f1_all_folds = []
@@ -476,6 +485,7 @@ def deployment_cv(X, y, model, parameters, filename, random_state = SEED, n_fold
     bfs_metrics = []
 
     f = 0
+
     for fold in folds:
         print(f"Fold {f}")
         f+=1
@@ -486,15 +496,15 @@ def deployment_cv(X, y, model, parameters, filename, random_state = SEED, n_fold
         y_test = fold["y_test"]
         
         scores = compute_feature_ranking(X_train_orig, y_train_orig, printing=False)
-                  
+                
         default_parameter = pick_first_param_values(parameters)
 
-        bfs, metrics = featureRanking(X_train_orig, y_train_orig, X_test, y_test, model, scores, default_parameter, plot=False, printing=False)
+        bfs, metrics = featureRanking(X_train_orig, y_train_orig, X_test, y_test, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV Deploy | Fold {f} | {modelName}", filename=f"./ElbowGraphs/iris/cv/deploy/fold_{f}_{modelName}.png")
 
         bfs_metrics.append([scores, metrics])
-    
     bfs_final, bfs_score = choose_average_bfs(bfs_metrics)
     print(bfs_final, bfs_score)
+    
 
 
     parameters_metrics = []
@@ -511,16 +521,42 @@ def deployment_cv(X, y, model, parameters, filename, random_state = SEED, n_fold
 
     return metrics
 
+def train_TO(X, y, model, printing=True, label="TO"):
+    metrics = classifier_model(model, X, y, X, y, label=label, printing=printing)
+    return metrics
+
+def train_TT(X, y, model, printing=True, label="TT", random_state=SEED):
+    X_train, y_train, X_test, y_test = split_set(X, y, test_size=0.3, random_state=random_state)
+    metrics = classifier_model(model, X_train, y_train, X_test, y_test, label=label, printing=printing)
+    return metrics
 
 def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED):
     if split_scheme == "TVT":
         return train_tvt(X, y, model, parameters, filename, random_state=random_state, label=label)
     elif split_scheme == "CV":
         if len(model) != len(parameters):
-            print("És burro e gordo")
-        best_model, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label)
-        metrics = deployment_cv(X, y, best_model, parameters, filename, random_state=random_state, label=label)
+            print("Não deu")
+        best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label)
+        metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label)
 
         return metrics
+    elif split_scheme == "TO":
+        train_TO(X, y, model, printing=True, label=label)
+    elif split_scheme == "TT":
+        train_TT(X, y, model, printing=True, label=label)
 
     return -1
+
+################################################
+
+def load_from_file(filename="data.npy", description="Dados"):
+    """
+    Carrega um ficheiro .npy guardado com `save_to_file`.
+    """
+    try:
+        data = np.load(filename, allow_pickle=True)
+        print(f"[OK] {description} carregados de '{filename}'.")
+        return data
+    except FileNotFoundError:
+        print(f"[INFO] Ficheiro '{filename}' não encontrado. {description} será recalculado.")
+        return None
