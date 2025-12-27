@@ -137,6 +137,24 @@ def create_list_by_sensor():
         all_the_data = np.vstack(new_list)
         sensors_data.append(all_the_data) 
 
+
+def create_list_by_sensor_labelp():
+    for k in range(NUM_SENSORS):
+        new_list = []
+        for j in range(NUM_PEOPLE):
+            data = individuals[j][k]              # array original
+            person_col = np.full((data.shape[0], 1), j + 1)  # coluna com j+1
+            data_with_person = np.hstack((data, person_col))
+            new_list.append(data_with_person)
+
+        all_the_data = np.vstack(new_list)
+        sensors_data.append(all_the_data)
+    
+    print(len(sensors_data))
+    print(len(sensors_data[0]))
+    print(sensors_data[0].shape)
+
+
 def create_list_by_people_and_sensor():
     #all_by_sensor = []
     for k in range (NUM_PEOPLE):
@@ -147,6 +165,8 @@ def create_list_by_people_and_sensor():
 
     print(len(people_sensor_data))
     print(len(people_sensor_data[0]))
+    print(len(people_sensor_data[0][0]))
+    print(people_sensor_data[0][0:10])
 
 
 def create_list_complete():
@@ -754,10 +774,19 @@ def generate_windows_outliers(data, outliers_indexes, p):
     return np.vstack(x), np.vstack(y)
 
 def removes_outliers_for_predictions(data, outlier_indices, y_prev):
-    i = 0
-    for index in outlier_indices:
+    """
+    Substitui os valores outlier pelos valores previstos pelo modelo.
+
+    data : array 1D (série temporal)
+    outlier_indices : índices dos outliers
+    y_prev : previsões (n_outliers x 1) ou (n_outliers,)
+    """
+    # Garantir vetor 1D de escalares
+    y_prev = np.asarray(y_prev).reshape(-1)
+
+    for i, index in enumerate(outlier_indices):
         data[index] = y_prev[i]
-        i += 1
+
     return data
 
 def removes_outliers_for_predictions_2(data, outlier_indices, y_prev):
@@ -1296,6 +1325,7 @@ def ex_4_2_person_sensor():
             person_data = people_sensor_data[i]
             features_by_sensor = []
             for l in range(NUM_SENSORS):
+                print(f"\nSensor {l}:")
                 sensor_data = person_data[l]
                 X = sensor_data[:, :-1]     # dados do sensor
                 labels = sensor_data[:, -1] # labels (1–16)
@@ -1344,6 +1374,148 @@ def ex_4_2_person_sensor():
     print("Pessoa 0, Sensor 0, Atividade 0 ->", all_features_list_norm[0][0].shape)
 
     return all_features_list_norm
+
+def ex_4_2_person_sensor_2():
+    print("=== Verificando ficheiro de features ===")
+
+    filename = "all_features_norm_person_sensor.npy"
+    log_filename = "shapes_person_sensor_activity.txt"
+
+    # Tenta carregar primeiro
+    loaded_features = load_from_file(filename)
+
+    if loaded_features is not None:
+        print("[OK] Features já existentes foram carregadas.")
+        all_features_list_norm = loaded_features
+
+    else:
+        print("[INFO] Ficheiro não encontrado. Criando features...")
+
+        all_features_list = []
+
+        with open(log_filename, "w", encoding="utf-8") as log:
+            log.write("Pessoa | Sensor | Atividade | Shape Features\n")
+            log.write("-" * 50 + "\n")
+
+            for i in range(NUM_PEOPLE):
+                print(f"\nPerson {i}:")
+                person_data = people_sensor_data[i]
+                features_by_sensor = []
+
+                for l in range(NUM_SENSORS):
+                    print(f"  Sensor {l}:")
+                    sensor_data = person_data[l]
+                    X = sensor_data[:, :-1]     # dados do sensor
+                    labels = sensor_data[:, -1] # labels (1–16)
+
+                    sensor_features_by_activity = []
+
+                    for act in range(1, NUM_ACTIVITIES + 1):
+                        print(f"\tAtividade {act}...")
+
+                        # Selecionar apenas as amostras desta atividade
+                        act_data = X[labels == act]
+
+                        # Extrair features por janelas
+                        matrix = extract_features_by_sensor(act_data, 2, 0.5)
+
+                        # ====== LOG DA SHAPE ======
+                        log.write(
+                            f"{i+1:6d} | {l+1:6d} | {act:9d} | {matrix.shape}\n"
+                        )
+
+                        sensor_features_by_activity.append(matrix)
+
+                    features_by_sensor.append(sensor_features_by_activity)
+
+                all_features_list.append(features_by_sensor)
+
+        # Converter para numpy object
+        all_features_list_norm = np.array(all_features_list, dtype=object)
+
+        # Guardar no ficheiro
+        save_to_file(all_features_list_norm, filename)
+        print(f"[OK] Features criadas e guardadas em '{filename}'.")
+        print(f"[OK] Log de shapes guardado em '{log_filename}'.")
+
+    # Exemplo de confirmação no ecrã
+    print("\nExemplo de shape:")
+    print("Pessoa 0, Sensor 0, Atividade 0 ->",
+          all_features_list_norm[0][0][0].shape)
+
+    return all_features_list_norm
+
+def ex_4_2_person_sensor_final():
+    print("=== Verificando ficheiro de features ===")
+
+    filename = "all_features_norm_person_sensor.npy"
+    log_filename = "shapes_person_activity_sensors.txt"
+
+    loaded_features = load_from_file(filename)
+
+    if loaded_features is not None:
+        print("[OK] Features já existentes foram carregadas.")
+        all_features_list_norm = loaded_features
+
+    else:
+        print("[INFO] Ficheiro não encontrado. Criando features...")
+
+        all_features_list = []
+
+        with open(log_filename, "w", encoding="utf-8") as log:
+            # Cabeçalho
+            log.write(
+                "Pessoa | Atividade | Sensor1 | Sensor2 | Sensor3 | Sensor4 | Sensor5\n"
+            )
+            log.write("-" * 90 + "\n")
+
+            for i in range(NUM_PEOPLE):
+                print(f"\nPerson {i}:")
+                person_data = people_sensor_data[i]
+                features_by_sensor = []
+
+                for l in range(NUM_SENSORS):
+                    print(f"  Sensor {l}:")
+                    sensor_data = person_data[l]
+                    X = sensor_data[:, :-1]
+                    labels = sensor_data[:, -1]
+
+                    sensor_features_by_activity = []
+
+                    for act in range(1, NUM_ACTIVITIES + 1):
+                        act_data = X[labels == act]
+                        matrix = extract_features_by_sensor(act_data, 2, 0.5)
+                        sensor_features_by_activity.append(matrix)
+
+                    features_by_sensor.append(sensor_features_by_activity)
+
+                # ====== LOG POR PESSOA + ATIVIDADE ======
+                for act in range(NUM_ACTIVITIES):
+                    shapes = []
+                    for sensor in range(NUM_SENSORS):
+                        shapes.append(features_by_sensor[sensor][act].shape)
+
+                    log.write(
+                        f"{i+1:6d} | {act+1:9d} | "
+                        + " | ".join([str(s) for s in shapes])
+                        + "\n"
+                    )
+
+                all_features_list.append(features_by_sensor)
+
+        all_features_list_norm = np.array(all_features_list, dtype=object)
+
+        save_to_file(all_features_list_norm, filename)
+        print(f"[OK] Features criadas e guardadas em '{filename}'.")
+        print(f"[OK] Log de shapes guardado em '{log_filename}'.")
+
+    # Confirmação no ecrã
+    print("\nExemplo de shape:")
+    print("Pessoa 0, Sensor 0, Atividade 0 ->",
+          all_features_list_norm[0][0][0].shape)
+
+    return all_features_list_norm
+
 
 # EX 4.3
 
@@ -1627,6 +1799,186 @@ def ex_4_5(all_features_norm):
 
     return
 
+def replace_outliers_linear_model(
+    data_list,
+    cols_to_check=range(2, 8),
+    p=100,
+    z_thresh=3
+):
+    """
+    data_list : lista com 5 arrays (N x 13)
+    cols_to_check : colunas onde detetar outliers
+    p : tamanho da janela temporal
+    z_thresh : limiar do z-score
+    """
+
+    cleaned_data_list = []
+
+    for sensor_idx, data in enumerate(data_list):
+        print(f"\nSensor {sensor_idx}")
+        data_clean = data.copy()
+
+        for col in cols_to_check:
+            print(f"  Coluna {col}")
+
+            column_data = data_clean[:, col]
+
+            # -------------------------------
+            # 1. DETEÇÃO DE OUTLIERS (z-score)
+            # -------------------------------
+            mean = np.mean(column_data)
+            std = np.std(column_data)
+
+            if std == 0:
+                print("    Std = 0 → ignorada")
+                continue
+
+            z_scores = np.abs((column_data - mean) / std)
+            outlier_indices = np.where(z_scores > z_thresh)[0]
+
+            # Garantir que há dados suficientes para janelas
+            outlier_indices = outlier_indices[outlier_indices >= p]
+
+            print(f"    Outliers detetados: {len(outlier_indices)}")
+
+            if len(outlier_indices) == 0:
+                continue
+
+            # ---------------------------------------
+            # 2. TREINAR MODELO COM DADOS NORMAIS
+            # ---------------------------------------
+            x, y = generate_windows(column_data, p)
+            beta = linear_model(x, y)
+
+            # ---------------------------------------
+            # 3. PREVER OUTLIERS
+            # ---------------------------------------
+            x_out, y_true = generate_windows_outliers(
+                column_data, outlier_indices, p
+            )
+
+            y_prev = linear_model_predict(x_out, beta)
+
+            # ---------------------------------------
+            # 4. SUBSTITUIR OUTLIERS
+            # ---------------------------------------
+            column_data_no_outliers = removes_outliers_for_predictions(
+                column_data.copy(),
+                outlier_indices,
+                y_prev
+            )
+
+            data_clean[:, col] = column_data_no_outliers
+
+        cleaned_data_list.append(data_clean)
+
+    return cleaned_data_list
+
+import numpy as np
+import pandas as pd
+
+def build_feature_dataset(
+    data_with_no_outlires,
+    window_time,
+    overlap,
+    output_csv
+):
+    """
+    data_with_no_outlires : lista com 5 arrays (N x 13)
+    window_time : duração da janela (s)
+    overlap : overlap [0,1[
+    output_csv : path do CSV final
+    """
+
+    num_sensors = len(data_with_no_outlires)
+
+    # Referência para labels
+    ref = data_with_no_outlires[0]
+    activities = ref[:, 11]
+    people = ref[:, 12]
+
+    unique_people = np.unique(people)
+    unique_activities = np.unique(activities)
+
+    rows = []
+
+    for person in unique_people:
+        for activity in unique_activities:
+
+            sensor_features = []
+            min_windows = np.inf
+
+            # -----------------------------
+            # 1. FEATURES POR SENSOR
+            # -----------------------------
+            for s in range(num_sensors):
+                sensor_data = data_with_no_outlires[s]
+
+                mask = (
+                    (sensor_data[:, 11] == activity) &
+                    (sensor_data[:, 12] == person)
+                )
+
+                # Apenas colunas de sinal (até timestamp inclusive)
+                signal_data = sensor_data[mask, :10]
+
+                if signal_data.shape[0] == 0:
+                    feats = np.empty((0, 110))
+                else:
+                    feats = extract_features_by_sensor(
+                        signal_data,
+                        window_time,
+                        overlap
+                    )
+
+                sensor_features.append(feats)
+                min_windows = min(min_windows, feats.shape[0])
+
+            # Se algum sensor não tiver janelas suficientes → ignora
+            if min_windows == 0 or min_windows == np.inf:
+                continue
+
+            # -----------------------------
+            # 2. ALINHAMENTO (TRUNCAMENTO)
+            # -----------------------------
+            sensor_features = [
+                feats[:min_windows, :]
+                for feats in sensor_features
+            ]
+
+            # -----------------------------
+            # 3. CONCATENAÇÃO (550 features)
+            # -----------------------------
+            X = np.hstack(sensor_features)  # (min_windows x 550)
+
+            # -----------------------------
+            # 4. ADICIONAR LABELS
+            # -----------------------------
+            activity_col = np.full((min_windows, 1), activity)
+            person_col = np.full((min_windows, 1), person)
+
+            X = np.hstack([X, activity_col, person_col])
+
+            rows.append(X)
+
+    # -----------------------------
+    # 5. DATASET FINAL
+    # -----------------------------
+    final_matrix = np.vstack(rows)
+
+    num_features = 110 * num_sensors
+    columns = (
+        [f"f{i+1}" for i in range(num_features)] +
+        ["activity", "person"]
+    )
+
+    df = pd.DataFrame(final_matrix, columns=columns)
+    df.to_csv(output_csv, index=False)
+
+    print("Dataset final criado")
+    print("Shape:", df.shape)
+
+
 def main():
     # EX 2
     getFiles(PATH)                   # get all the individuals
@@ -1635,7 +1987,23 @@ def main():
 
     #create_list_by_sensor()
 
-    create_list_by_people_and_sensor()
+    #create_list_by_people_and_sensor()
+
+    create_list_by_sensor_labelp()
+
+    data_with_no_outlires = replace_outliers_linear_model(sensors_data)
+
+    print(len(data_with_no_outlires))
+    print(len(data_with_no_outlires[0]))
+    print(data_with_no_outlires[0].shape)
+
+    #Defenir a window_time, o overlap e o nome do ficheiro 
+
+    window_time = 2
+    overlap = 0.5
+    output_csv = "data_prepared_for_training"
+
+    build_feature_dataset(data_with_no_outlires, window_time, overlap, output_csv)
 
     # EX 3.1
     #num_outliers_per_sensor = boxPlot_modules(plot = False, save = False)  #This is the right one
@@ -1716,7 +2084,7 @@ def main():
     # EX 4.2
 
     #all_features_list_norm = ex_4_2()
-    all_features_list = ex_4_2_person_sensor()
+    #all_features_list = ex_4_2_person_sensor_final()
 
     # print(all_features_list_norm[4][14][:,1])
     # print(all_features_list_norm[4][13][:,1])
