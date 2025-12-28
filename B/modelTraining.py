@@ -492,16 +492,16 @@ def createFolds(X, y, n_folds=10, n_repeats=10):
 
         # train (90% * 0.9) + validation (90% * 0.1)
         # 80 + 10 + 10
-        dic_1 = split_set(X_train_orig, y_train_orig, train_size = 0.9, val_size = 0, test_size = 0.1, random_state=SEED)
+        X_train, X_val, y_train, y_val = split_set(X_train_orig, y_train_orig, train_size = 0.9, val_size = 0, test_size = 0.1, random_state=SEED)
 
         dic_2 = {"X_train_orig": X_train_orig, 
             "y_train_orig": y_train_orig,
-            "X_train": dic_1["X_train"],
-            "y_train": dic_1["y_train"],
+            "X_train": X_train,
+            "y_train": y_train,
             "X_test": X_test,
             "y_test": y_test,
-            "X_val": dic_1["X_test"],
-            "y_val": dic_1["y_test"]}
+            "X_val": X_val,
+            "y_val": y_val}
         
         folds.append(dic_2)
         
@@ -640,7 +640,20 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", 
     metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
     return metrics
 
-def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True):
+def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True, flagPrintingFoldNumber=True):
+    # Se 'models' NÃO for um dicionário (ou seja, é um modelo solto)
+    if not isinstance(models, dict):
+        # 1. Descobrimos um nome automático (ex: "RandomForestClassifier")
+        model_name = type(models).__name__ 
+        
+        # 2. Transformamos o modelo único num dicionário
+        models = {model_name: models}
+        
+        # 3. CRÍTICO: Temos de fazer o mesmo com os 'parameters' 
+        # para que a linha parameters[modelName] não falhe mais tarde
+        if not isinstance(parameters, dict):
+            parameters = {model_name: parameters}
+
     if use_iris==True:
         folds = createFolds(X, y, 10, 10)
     else: 
@@ -650,7 +663,8 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
 
     f = 0
     for fold in folds:
-        print(f"Fold {f}")
+        if flagPrintingFoldNumber:
+            print(f"Fold {f}")
         f+=1
 
         f1_this_fold_models = {model_name: None for model_name in models.keys()}
@@ -664,18 +678,21 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
         X_val = fold["X_val"]
         y_val = fold["y_val"]
 
-        scores = compute_feature_ranking(X_train, y_train, printing=False)
-        
+        if flagfeatureRanking:
+            scores = compute_feature_ranking(X_train, y_train, printing=False)
+        else:
+            scores = list(range(X.shape[1]))
+
         m = 0
         for modelName, model in models.items():            
             default_parameter = pick_first_param_values(parameters[modelName])
 
             if flagfeatureRanking:
                 bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=f"./ElbowGraphs/iris/cv/fold_{f}_{modelName}.png")
+                best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
             else:
                 bfs = scores
-
-            best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
+                best_parameters = default_parameter
 
             score = classifier_model(model, X_train_orig[:, bfs], y_train_orig, X_test[:, bfs], y_test, printing=False, params=best_parameters)["f1-score"]
 
@@ -691,7 +708,7 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
 
     return models[best_model], best_model, parameters[best_model]
 
-def deployment_cv(X, y, model, modelName, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label=""):
+def deployment_cv(X, y, model, modelName, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagPrintingFoldNumber=True, flagfeatureRanking=True):
     folds = createFolds(X, y, 10, 10)
 
     f1_all_folds = []
@@ -700,34 +717,39 @@ def deployment_cv(X, y, model, modelName, parameters, filename, random_state = S
 
     f = 0
 
-    for fold in folds:
-        print(f"Fold {f}")
-        f+=1
+    if flagfeatureRanking:
+        for fold in folds:
+            if flagPrintingFoldNumber:
+                print(f"Fold {f}")
+            f+=1
 
-        X_train_orig = fold["X_train_orig"]
-        y_train_orig = fold["y_train_orig"]
-        X_test = fold["X_test"]
-        y_test = fold["y_test"]
-        
-        scores = compute_feature_ranking(X_train_orig, y_train_orig, printing=False)
-                
-        default_parameter = pick_first_param_values(parameters)
+            X_train_orig = fold["X_train_orig"]
+            y_train_orig = fold["y_train_orig"]
+            X_test = fold["X_test"]
+            y_test = fold["y_test"]
+            
+            scores = compute_feature_ranking(X_train_orig, y_train_orig, printing=False)
+                    
+            default_parameter = pick_first_param_values(parameters)
 
-        bfs, metrics = featureRanking(X_train_orig, y_train_orig, X_test, y_test, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV Deploy | Fold {f} | {modelName}", filename=f"./ElbowGraphs/iris/cv/deploy/fold_{f}_{modelName}.png")
+            bfs, metrics = featureRanking(X_train_orig, y_train_orig, X_test, y_test, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV Deploy | Fold {f} | {modelName}", filename=f"./ElbowGraphs/iris/cv/deploy/fold_{f}_{modelName}.png")
 
-        bfs_metrics.append([scores, metrics])
-    bfs_final, bfs_score = choose_average_bfs(bfs_metrics)
-    print(bfs_final, bfs_score)
+            bfs_metrics.append([scores, metrics])
+        bfs_final, bfs_score = choose_average_bfs(bfs_metrics)
+        print(bfs_final, bfs_score)
 
-    parameters_metrics = []
-    for fold in folds:
-        best_parameters, score, params_list = chooseParameters(X_train_orig, y_train_orig, X_test, y_test, model, bfs_final, parameters)
+        parameters_metrics = []
+        for fold in folds:
+            best_parameters, score, params_list = chooseParameters(X_train_orig, y_train_orig, X_test, y_test, model, bfs_final, parameters)
 
-        parameters_metrics.append([best_parameters, score])
+            parameters_metrics.append([best_parameters, score])
 
-    print(parameters_metrics)
+        print(parameters_metrics)
 
-    best_parameters, _ = choose_average_params(parameters_metrics)
+        best_parameters, _ = choose_average_params(parameters_metrics)
+    else:
+        bfs_final = list(range(X.shape[1]))
+        best_parameters = pick_first_param_values(parameters)
 
     metrics = deployModel(X_train_orig, y_train_orig, X_test, y_test, model, bfs, best_parameters, filename, label=label)
 
@@ -742,15 +764,58 @@ def train_TT(X, y, model, printing=True, label="TT", random_state=SEED, use_iris
     metrics = classifier_model(model, X_train, y_train, X_test, y_test, label=label, printing=printing)
     return metrics
 
-def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED, use_iris=True):
+def averageInCV(X, y, model, flagPrintingFoldNumber=False, use_iris=True):
+    if use_iris==True:
+        folds = createFolds(X, y, 10, 10)
+    else: 
+        folds = create_repeated_person_folds(X , y, person_col_index=-1, n_splits=10, n_repeats=10, random_state=SEED)
+
+    f1_scores_by_folds = []
+    recall_by_folds = []
+    precision_by_folds = []
+
+    f = 0
+    for fold in folds:
+        if flagPrintingFoldNumber:
+            print(f"Fold {f}")
+        f+=1
+
+        X_train_orig = fold["X_train_orig"]
+        y_train_orig = fold["y_train_orig"]
+        X_train = fold["X_train"]
+        y_train = fold["y_train"]
+        X_test = fold["X_test"]
+        y_test = fold["y_test"]
+        X_val = fold["X_val"]
+        y_val = fold["y_val"]
+
+        metrics = classifier_model(model, X_train, y_train, X_test, y_test, label="", printing=False)
+
+        f1_scores_by_folds.append(metrics["f1-score"])
+        recall_by_folds.append(metrics["recall"])
+        precision_by_folds.append(metrics["precision"])
+    
+    f1_mean = sum(f1_scores_by_folds) / len(f1_scores_by_folds)
+    recall_mean = sum(recall_by_folds) / len(recall_by_folds)
+    precision_mean = sum(precision_by_folds) / len(precision_by_folds)
+
+    return f1_mean, recall_mean, precision_mean
+
+def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED, use_iris=True, feature_ranking = True):
     if split_scheme == "TVT":
         return train_tvt(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris)
+    elif split_scheme == "CV-base":
+        f1_mean, recall_mean, precision_mean = averageInCV(X, y, model, flagPrintingFoldNumber=False, use_iris=use_iris)
+        metrics = {"recall": recall_mean, "precision": precision_mean, "f1-score": f1_mean}
+        print(f"\n===== {label} (means) =====")
+        print(f"Recall:    {recall_mean:.4f}")
+        print(f"Precision: {precision_mean:.4f}")
+        print(f"F1-Score:  {f1_mean:.4f}")
+        print("=========================")
+        return metrics
     elif split_scheme == "CV":
-        # if len(model) != len(parameters):
-        #     print("Não deu")
-        best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris)
-        metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label)
-
+        best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False)
+        metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False)
         return metrics
     elif split_scheme == "TO":
         if use_iris == True:
