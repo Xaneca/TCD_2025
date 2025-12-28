@@ -688,7 +688,7 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
             default_parameter = pick_first_param_values(parameters[modelName])
 
             if flagfeatureRanking:
-                bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=f"./ElbowGraphs/iris/cv/fold_{f}_{modelName}.png")
+                bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=f"./ElbowGraphs/iris/cv_k_{model.n_neighbors}/fold_{f}_{modelName}.png")
                 best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
             else:
                 bfs = scores
@@ -707,6 +707,18 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
     print(models[best_model])
 
     return models[best_model], best_model, parameters[best_model]
+
+def plot_metrics(metrics_list, metric_name='f1-score', title='Metric Plot'):
+    ks = [m['k'] for m in metrics_list]
+    values = [m[metric_name] for m in metrics_list]
+
+    plt.figure(figsize=(6,4))
+    plt.plot(ks, values, marker='o')
+    plt.xlabel("k (n_neighbors)")
+    plt.ylabel(metric_name)
+    plt.title(title)
+    plt.grid(True)
+    plt.show()
 
 def deployment_cv(X, y, model, modelName, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagPrintingFoldNumber=True, flagfeatureRanking=True):
     folds = createFolds(X, y, 10, 10)
@@ -800,6 +812,24 @@ def averageInCV(X, y, model, flagPrintingFoldNumber=False, use_iris=True):
     precision_mean = sum(precision_by_folds) / len(precision_by_folds)
 
     return f1_mean, recall_mean, precision_mean
+
+def evaluate_with_kfold(X, y, classifier, rkf, label="KFOLD", printing=True):
+    y_preds, y_trues = [], []
+
+    for train_idx, test_idx in rkf.split(X, y):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+
+        clf = clone(classifier)
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+
+        y_trues.append(y_test)
+        y_preds.append(y_pred)
+
+    # metrics_df = metrics_to_dataframe(y_trues, y_preds, label=label)
+    metrics = print_metrics(y_trues, y_preds, label=label, printing=printing)
+    return metrics
 
 def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED, use_iris=True, feature_ranking = True):
     if split_scheme == "TVT":
