@@ -10,7 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from skrebate import ReliefF
 import joblib
-
+from sklearn.preprocessing import MinMaxScaler          # Normalizaçao
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from itertools import product
@@ -19,28 +19,154 @@ import ast
 
 SEED = 42
 
-def split_set(X, y, train_size = 0.4, val_size = 0.3, test_size = 0.3, random_state=38):
-    if val_size > 0:
-        # Primeiro separa o conjunto de teste
-        X_train_orig, X_test, y_train_orig, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=random_state, stratify=y
-        )
+import numpy as np
 
-        # Proporção relativa da validação dentro de X_temp (treino + validação)
-        val_relative_size = val_size / (1.0 - test_size)
+def split_dataset_by_person_tvt(X, y, person_col_index=-1):
+    """
+    Divide o dataset em treino, validação e teste com base nas pessoas.
 
-        # Depois separa treino e validação, estratificando por y_temp (não por y)
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_train_orig, y_train_orig, test_size=val_relative_size, random_state=random_state, stratify=y_train_orig
-        )
+    X : np.ndarray
+        Features, incluindo a coluna 'person'
+    y : np.ndarray
+        Labels (atividade)
+    person_col_index : int
+        Índice da coluna 'person' em X (default: última)
 
-        return {"X_train_orig": X_train_orig, "X_train": X_train, "X_test": X_test, "X_val": X_val, "y_train_orig": y_train_orig, "y_train": y_train, "y_test": y_test, "y_val": y_val}
+    Retorna
+    -------
+    X_train, y_train, X_val, y_val, X_test, y_test
+    """
+
+    # Extrair coluna 'person'
+    persons = X[:, person_col_index]
+
+    # Definir grupos de pessoas
+    train_persons = np.arange(1, 8)    # pessoas 1–7
+    val_persons   = np.arange(8, 12)   # pessoas 8–11
+    test_persons  = np.arange(12, 16)  # pessoas 12–15
+
+    # Criar máscaras
+    train_mask = np.isin(persons, train_persons)
+    val_mask   = np.isin(persons, val_persons)
+    test_mask  = np.isin(persons, test_persons)
+
+    # Remover coluna 'person' de X
+    X_features = np.delete(X, person_col_index, axis=1)
+
+    # Dividir
+    X_train = X_features[train_mask]
+    y_train = y[train_mask]
+
+    X_val = X_features[val_mask]
+    y_val = y[val_mask]
+
+    X_test = X_features[test_mask]
+    y_test = y[test_mask]
+
+    print(f"Treino: {X_train.shape[0]} amostras")
+    print(f"Validação: {X_val.shape[0]} amostras")
+    print(f"Teste: {X_test.shape[0]} amostras")
+
+    return X_train, y_train, X_val, y_val, X_test, y_test
+
+import numpy as np
+
+def split_dataset_by_person_tt(X, y, person_col_index=-1):
+    """
+    Divide o dataset em treino e teste com base nas pessoas.
+
+    X : np.ndarray
+        Features, incluindo a coluna 'person'
+    y : np.ndarray
+        Labels (atividade)
+
+    Retorna
+    -------
+    X_train, y_train, X_test, y_test
+    """
+
+    # Extrair coluna 'person'
+    persons = X[:, person_col_index]
+
+    # Definir grupos de pessoas
+    train_persons = np.arange(1, 12)   # pessoas 1–11
+    test_persons  = np.arange(12, 16)  # pessoas 12–15
+
+    # Criar máscaras
+    train_mask = np.isin(persons, train_persons)
+    test_mask  = np.isin(persons, test_persons)
+
+    # Remover coluna 'person' das features
+    X_features = np.delete(X, person_col_index, axis=1)
+
+    # Dividir
+    X_train = X_features[train_mask]
+    y_train = y[train_mask]
+
+    X_test = X_features[test_mask]
+    y_test = y[test_mask]
+
+    print(f"Treino: {X_train.shape[0]} amostras")
+    print(f"Teste: {X_test.shape[0]} amostras")
+
+    return X_train, y_train, X_test, y_test
+
+def split_set(X, y, train_size = 0.4, val_size = 0.3, test_size = 0.3, random_state=38, use_iris=True):
+    if (use_iris==True):
+        if val_size > 0:
+            # Primeiro separa o conjunto de teste
+            X_train_orig, X_test, y_train_orig, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state, stratify=y
+            )
+
+            # Proporção relativa da validação dentro de X_temp (treino + validação)
+            val_relative_size = val_size / (1.0 - test_size)
+
+            # Depois separa treino e validação, estratificando por y_temp (não por y)
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_train_orig, y_train_orig, test_size=val_relative_size, random_state=random_state, stratify=y_train_orig
+            )
+
+            return {"X_train_orig": X_train_orig, "X_train": X_train, "X_test": X_test, "X_val": X_val, "y_train_orig": y_train_orig, "y_train": y_train, "y_test": y_test, "y_val": y_val}
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state, stratify=y
+            )
+
+            return X_train, X_test, y_train, y_test
     else:
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=random_state, stratify=y
-        )
+        if val_size > 0:
+            X_train, y_train, X_val, y_val, X_test, y_test = split_dataset_by_person_tvt(X, y)
 
-        return {"X_train": X_train, "X_test": X_test, "y_train": y_train, "y_test": y_test}
+            # NORMALIZAÇÃO
+            scaler = MinMaxScaler()
+
+            # Normaliza para os máximos e minimos do X_Train e guarda
+            X_train_scaled = scaler.fit_transform(X_train)
+
+            # Normaliza com os máximos e minimos guardados
+            X_val_scaled = scaler.transform(X_val)
+
+            X_test_scaled = scaler.transform(X_test)
+
+            X_train_orign = np.vstack((X_train_scaled, X_val_scaled))
+
+            y_train_orign = np.concatenate((y_train, y_val), axis=0)
+
+            return {"X_train_orig": X_train_orign, "X_train": X_train_scaled, "X_test": X_test_scaled, "X_val": X_val_scaled, "y_train_orig": y_train_orign, "y_train": y_train, "y_test": y_test, "y_val": y_val}
+        else:
+            X_train, y_train, X_test, y_test = split_dataset_by_person_tt(X, y)
+
+            # NORMALIZAÇÃO
+            scaler = MinMaxScaler()
+
+            # Normaliza para os máximos e minimos do X_Train e guarda
+            X_train_scaled = scaler.fit_transform(X_train)
+
+            # Normaliza com os máximos e minimos guardados
+            X_test_scaled = scaler.transform(X_test)
+
+            return X_train_scaled, X_test_scaled, y_train, y_test
 
 #EX 1.2 ##################################
 #EX 1.2.1
@@ -381,6 +507,91 @@ def createFolds(X, y, n_folds=10, n_repeats=10):
         
     return folds
 
+import numpy as np
+
+def create_repeated_person_folds(
+    X,
+    y,
+    person_col_index=-1,
+    n_splits=10,
+    n_repeats=10,
+    random_state=42
+):
+    """
+    Repeated cross-validation por pessoa (ex: 10x10 = 100 folds)
+
+    Cada fold:
+    - ~80% pessoas treino
+    - ~10% validação
+    - ~10% teste
+    """
+
+    rng = np.random.default_rng(random_state)
+    persons = X[:, person_col_index].astype(int)
+    unique_persons = np.unique(persons)
+
+    n_persons = len(unique_persons)
+    n_test = max(1, int(0.1 * n_persons))
+    n_val  = max(1, int(0.1 * n_persons))
+
+    folds = []
+
+    for rep in range(n_repeats):
+        # Baralhar pessoas a cada repetição
+        shuffled = unique_persons.copy()
+        rng.shuffle(shuffled)
+
+        for fold in range(n_splits):
+            # Rotação circular
+            rotated = np.roll(shuffled, fold)
+
+            test_persons = rotated[:n_test]
+            val_persons  = rotated[n_test:n_test + n_val]
+            train_persons = rotated[n_test + n_val:]
+
+            train_mask = np.isin(persons, train_persons)
+            val_mask   = np.isin(persons, val_persons)
+            test_mask  = np.isin(persons, test_persons)
+
+            X_feat = np.delete(X, person_col_index, axis=1)
+
+             # NORMALIZAÇÃO
+            scaler = MinMaxScaler()
+
+            # Normaliza para os máximos e minimos do X_Train e guarda
+            X_train_scaled = scaler.fit_transform(X_feat[train_mask])
+            y_train = y[train_mask]
+
+            # Normaliza com os máximos e minimos guardados
+            X_val_scaled = scaler.transform(X_feat[val_mask])
+            y_val = y[val_mask]
+
+            X_test_scaled = scaler.transform(X_feat[test_mask])
+            y_test = y[test_mask]
+
+            X_train_orign = np.vstack((X_train_scaled, X_val_scaled))
+            y_train_orign = np.concatenate((y_train, y_val), axis=0)
+
+
+            folds.append({
+                "X_train_orig": X_train_orign,
+                "y_train_orig": y_train_orign,
+                "X_train": X_train_scaled,
+                "y_train": y_train,
+                "X_val":   X_val_scaled,
+                "y_val":   y_val,
+                "X_test":  X_test_scaled,
+                "y_test":  y_test,
+                "rep": rep,
+                "fold": fold,
+                "train_persons": train_persons,
+                "val_persons": val_persons,
+                "test_persons": test_persons
+            })
+
+    print(f"Total de folds criados: {len(folds)}")
+    return folds
+
 def chooseModel(f1_all_folds, printing=True):
     """
     Recebe uma lista de dicionários com F1-scores por fold e modelo.
@@ -410,8 +621,8 @@ def chooseModel(f1_all_folds, printing=True):
 
 ######################################################################
 
-def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", featureRanking = True):
-    dic = split_set(X, y, random_state=random_state)
+def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", flagfeatureRanking = True, use_iris=True):
+    dic = split_set(X, y, random_state=random_state, use_iris=use_iris)
     X_train = dic["X_train"]
     X_val = dic["X_val"]
     y_train = dic["y_train"]
@@ -421,7 +632,7 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", 
 
     scores = compute_feature_ranking(X_train, y_train, printing=True)
 
-    if featureRanking:
+    if flagfeatureRanking:
         bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, params=default_parameters, save=True, title="TVT", filename="./ElbowGraphs/iris/tvt/elbow_graph.png")
     else:
         bfs = scores
@@ -429,8 +640,11 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", 
     metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
     return metrics
 
-def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", featureRanking=True):
-    folds = createFolds(X, y, 10, 10)
+def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True):
+    if use_iris==True:
+        folds = createFolds(X, y, 10, 10)
+    else: 
+        folds = create_repeated_person_folds(X , y, person_col_index=-1, n_splits=10, n_repeats=10, random_state=SEED)
 
     f1_all_folds = []
 
@@ -456,7 +670,7 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
         for modelName, model in models.items():            
             default_parameter = pick_first_param_values(parameters[modelName])
 
-            if featureRanking:
+            if flagfeatureRanking:
                 bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=f"./ElbowGraphs/iris/cv/fold_{f}_{modelName}.png")
             else:
                 bfs = scores
@@ -504,8 +718,6 @@ def deployment_cv(X, y, model, modelName, parameters, filename, random_state = S
         bfs_metrics.append([scores, metrics])
     bfs_final, bfs_score = choose_average_bfs(bfs_metrics)
     print(bfs_final, bfs_score)
-    
-
 
     parameters_metrics = []
     for fold in folds:
@@ -525,25 +737,29 @@ def train_TO(X, y, model, printing=True, label="TO"):
     metrics = classifier_model(model, X, y, X, y, label=label, printing=printing)
     return metrics
 
-def train_TT(X, y, model, printing=True, label="TT", random_state=SEED):
-    X_train, y_train, X_test, y_test = split_set(X, y, test_size=0.3, random_state=random_state)
+def train_TT(X, y, model, printing=True, label="TT", random_state=SEED, use_iris=True):
+    X_train, X_test, y_train, y_test = split_set(X, y, test_size=0.3, val_size=0, random_state=random_state, use_iris=use_iris)
     metrics = classifier_model(model, X_train, y_train, X_test, y_test, label=label, printing=printing)
     return metrics
 
-def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED):
+def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED, use_iris=True):
     if split_scheme == "TVT":
-        return train_tvt(X, y, model, parameters, filename, random_state=random_state, label=label)
+        return train_tvt(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris)
     elif split_scheme == "CV":
-        if len(model) != len(parameters):
-            print("Não deu")
-        best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label)
+        # if len(model) != len(parameters):
+        #     print("Não deu")
+        best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris)
         metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label)
 
         return metrics
     elif split_scheme == "TO":
-        train_TO(X, y, model, printing=True, label=label)
+        if use_iris == True:
+            X = np.delete(X, -1, axis=1)
+        metrics = train_TO(X, y, model, printing=True, label=label)
+        return metrics
     elif split_scheme == "TT":
-        train_TT(X, y, model, printing=True, label=label)
+        metrics = train_TT(X, y, model, printing=True, label=label, use_iris=use_iris)
+        return metrics
 
     return -1
 
