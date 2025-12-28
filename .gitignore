@@ -1,3 +1,6 @@
 .env
 A/data_prepared_for_training2.csv
 A/data_prepared_for_training.csv
+__pycache__/
+B/__pycache__/
+A/__pycache__/
