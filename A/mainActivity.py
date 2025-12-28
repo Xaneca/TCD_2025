@@ -1801,7 +1801,7 @@ def ex_4_5(all_features_norm):
 
 def replace_outliers_linear_model(
     data_list,
-    cols_to_check=range(2, 8),
+    cols_to_check=range(1, 7),
     p=100,
     z_thresh=3
 ):
@@ -1874,8 +1874,60 @@ def replace_outliers_linear_model(
 
     return cleaned_data_list
 
-import numpy as np
-import pandas as pd
+def get_feature_names_one_sensor(sensor_id):
+    acc = ["Ax", "Ay", "Az"]
+    gyro = ["Gx", "Gy", "Gz"]
+    all_channels = acc + gyro
+
+    feature_names = []
+
+    # A. Estatísticas temporais
+    temporal_feats = [
+        "mean", "median", "std", "variance", "rms",
+        "avg_derivative", "skewness", "kurtosis",
+        "iqr", "zcr", "mcr"
+    ]
+
+    for ch in all_channels:
+        for feat in temporal_feats:
+            feature_names.append(f"{feat}_{ch}_sensor_{sensor_id}")
+
+    # B. Estatísticas espectrais
+    spectral_feats = [
+        "dominant_frequency", "energy", "spectral_entropy"
+    ]
+
+    for ch in all_channels:
+        for feat in spectral_feats:
+            feature_names.append(f"{feat}_{ch}_sensor_{sensor_id}")
+
+    # C. Correlações
+    correlations = [
+        ("Ax", "Ay"), ("Ax", "Az"), ("Ay", "Az"),
+        ("Gx", "Gy"), ("Gx", "Gz"), ("Gy", "Gz"),
+        ("Ax", "Gx"), ("Ay", "Gy"), ("Az", "Gz"),
+        ("Ax", "Gy"), ("Ax", "Gz"), ("Ay", "Gx"),
+        ("Ay", "Gz"), ("Az", "Gx"), ("Az", "Gy")
+    ]
+
+    for ch1, ch2 in correlations:
+        feature_names.append(
+            f"corr_{ch1}_{ch2}_sensor_{sensor_id}"
+        )
+
+    # D. Features físicas
+    physical_feats = [
+        "AI", "VI", "SMA",
+        "EVA1", "EVA2",
+        "CAGH", "AVH", "AVG", "ARATG",
+        "AAE", "ARE"
+    ]
+
+    for feat in physical_feats:
+        feature_names.append(f"{feat}_sensor_{sensor_id}")
+
+    return feature_names
+
 
 def build_feature_dataset(
     data_with_no_outlires,
@@ -1966,11 +2018,12 @@ def build_feature_dataset(
     # -----------------------------
     final_matrix = np.vstack(rows)
 
-    num_features = 110 * num_sensors
-    columns = (
-        [f"f{i+1}" for i in range(num_features)] +
-        ["activity", "person"]
-    )
+    columns = []
+
+    for sensor_id in range(1, num_sensors + 1):
+        columns.extend(get_feature_names_one_sensor(sensor_id))
+
+    columns.extend(["activity", "person"])
 
     df = pd.DataFrame(final_matrix, columns=columns)
     df.to_csv(output_csv, index=False)
