@@ -16,6 +16,7 @@ from sklearn.neural_network import MLPClassifier
 from itertools import product
 import random
 import ast
+import os
 
 SEED = 42
 
@@ -244,7 +245,7 @@ def print_metrics(y_true, y_pred, label="Metric Results", printing = True):
 
 def reset_model(model):
     """
-    Cria uma nova instância do modelo com os mesmos parâmetros base.
+    Cria uma nova instância do com os mesmos parâmetros base.
     Garante que o modelo vem "limpo" e sem treino.
     """
     return model.__class__(**model.get_params())
@@ -314,7 +315,7 @@ def pick_first_param_values(param_grid):
             new_grid[key] = values
     return new_grid
 
-def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None, plot=True, printing=True, save=True, filename=None, title=None):
+def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None, plot=True, printing=True, save=True, filename=None, title=None, save_data=False):
 
     metrics_list = []
 
@@ -341,6 +342,31 @@ def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None,
         print(f"TOP {len(best_features)} features")
         print("BEST FEATURES", best_features)
 
+    if save_data and filename:
+        # Cria nome do ficheiro de texto baseado no nome da imagem
+        base_name, _ = os.path.splitext(filename)
+        print("base name",base_name)
+        txt_filename = base_name + '_feat_set_scores' + ".csv"
+        
+        try:
+            with open(txt_filename, "w") as f:
+                # 1. Escreve o Cabeçalho
+                f.write("Feature Set,F1-Score\n")
+                
+                # 2. Escreve todas as linhas
+                for metric in metrics_list:
+                    n = metric['n_features']
+                    # Recupera quais features foram usadas neste passo
+                    feats_used = list(scores[:n]) 
+                    f1 = metric['f1-score']
+                    
+                    # Escreve: "[0, 2, 4]",0.954
+                    f.write(f"\"{feats_used}\",{f1:.5f}\n")
+                    
+            print(f"Histórico completo guardado em: {txt_filename}")
+        except Exception as e:
+            print(f"Erro ao guardar ficheiro de dados: {e}")
+
     # Plot do F1
     plt.figure(figsize=(6,4))
     plt.plot(df_feat['n_features'], df_feat['f1'], marker='o')
@@ -357,9 +383,13 @@ def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None,
     return best_features, metrics_list
 
 
-def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
+import os
+from itertools import product
+
+def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid, save_data=False, filename=None):
     """
-    Itera sobre todas as combinações de parâmetros e devolve o melhor com F1-score.
+    Itera sobre todas as combinações de parâmetros, devolve o melhor com F1-score
+    e guarda os resultados num ficheiro se solicitado.
     """
     keys = list(param_grid.keys())
     valores = list(param_grid.values())
@@ -368,11 +398,12 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
 
     params_list = []
 
-    # ver nº total de combinaçoes
+    # Calcular número total de combinações
     total_combs = 1
     for v in valores:
         total_combs *= len(v)
 
+    # --- Lógica de Treino ---
     if total_combs > 1: 
         # Itera todas as combinações
         for comb in product(*valores):
@@ -388,17 +419,17 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
                 params=params
             )
 
-            score = metrics["f1-score"]   # AJUSTAR SE NECESSÁRIO
+            score = metrics["f1-score"]
             params_list.append([params, metrics])
 
             if score > best_score:
                 best_score = score
                 best_params = params
-
+        
         print("Best Parameters:", best_params)
 
-        return best_params, best_score, params_list
     else:
+        # Caso só exista uma combinação (ex: baseline ou parametros fixos)
         params = {k: v[0] for k, v in param_grid.items()}
 
         metrics = classifier_model(
@@ -411,10 +442,37 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid):
             params=params
         )
 
-        print("Parameters:", params)
-
         score = metrics["f1-score"]
-        return params, score, [params, metrics]
+        print("Parameters:", params)
+        
+        # Guardamos na lista para o código de 'save' funcionar igual
+        params_list.append([params, metrics])
+        best_params = params
+        best_score = score
+
+    if save_data and filename:
+        try:
+            base_name, _ = os.path.splitext(filename)
+            # Formato pedido (adicionei um "_" antes para ficar legível: arquivo_param_set...)
+            txt_filename = base_name + '_param_set_scores.csv' 
+            
+            with open(txt_filename, "w") as f:
+                # Cabeçalho
+                f.write("Parameters,F1-Score\n")
+                
+                # Escreve todas as combinações testadas
+                for p, m in params_list:
+                    f1 = m["f1-score"]
+                    # "str(p)" converte o dicionário {'k': 5} para texto
+                    # Coloquei aspas extra para o Excel não baralhar as virgulas do dicionário
+                    f.write(f"\"{str(p)}\",{f1:.5f}\n")
+            
+            print(f"Resultados dos parâmetros guardados em: {txt_filename}")
+            
+        except Exception as e:
+            print(f"Erro ao guardar ficheiro de parâmetros: {e}")
+
+    return best_params, best_score, params_list
     
 def choose_average_bfs(all_metrics):
     param_bfs_all = {}
@@ -462,7 +520,7 @@ def choose_average_params(all_metrics):
 
     return result, best_score
     
-def deployModel(X_train, y_train, X_test, y_test, model, bfs, parameters, filename, label = "",):
+def deployModel(X_train, y_train, X_test, y_test, model, bfs, parameters, filename, label = ""):
     
     clf = reset_model(model)
 
@@ -621,7 +679,7 @@ def chooseModel(f1_all_folds, printing=True):
 
 ######################################################################
 
-def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", flagfeatureRanking = True, use_iris=True):
+def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", flagfeatureRanking = True, use_iris=True, printing=True, save_data=False):
     dic = split_set(X, y, random_state=random_state, use_iris=use_iris)
     X_train = dic["X_train"]
     X_val = dic["X_val"]
@@ -630,17 +688,24 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", 
 
     default_parameters = pick_first_param_values(parameters)
 
-    scores = compute_feature_ranking(X_train, y_train, printing=True)
+    if use_iris:
+        this_filename="./ElbowGraphs/iris/tvt/elbow_graph.png"
+    else:
+        this_filename="./ElbowGraphs/activities/tvt/elbow_graph.png"
 
     if flagfeatureRanking:
-        bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, params=default_parameters, save=True, title="TVT", filename="./ElbowGraphs/iris/tvt/elbow_graph.png")
+        scores = compute_feature_ranking(X_train, y_train, printing=True)
+        bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, params=default_parameters, save=True, title="TVT", filename=filename, printing=printing, save_data=save_data)
+        best_parameters, best_score_with_val, _ = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters, filename=filename, save_data=save_data)
     else:
-        bfs = scores
-    best_parameters, _, _ = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters)
-    metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
-    return metrics
+        bfs = list(range(X_train.shape[1]))
+        best_parameters = default_parameters
+        return deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
 
-def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True, flagPrintingFoldNumber=True):
+    metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
+    return metrics, best_score_with_val, bfs, best_parameters
+
+def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True, flagPrintingFoldNumber=True, printing=True):
     # Se 'models' NÃO for um dicionário (ou seja, é um modelo solto)
     if not isinstance(models, dict):
         # 1. Descobrimos um nome automático (ex: "RandomForestClassifier")
@@ -785,6 +850,7 @@ def averageInCV(X, y, model, flagPrintingFoldNumber=False, use_iris=True):
     f1_scores_by_folds = []
     recall_by_folds = []
     precision_by_folds = []
+    cms_by_folds = [] 
 
     f = 0
     for fold in folds:
@@ -792,26 +858,36 @@ def averageInCV(X, y, model, flagPrintingFoldNumber=False, use_iris=True):
             print(f"Fold {f}")
         f+=1
 
-        X_train_orig = fold["X_train_orig"]
-        y_train_orig = fold["y_train_orig"]
         X_train = fold["X_train"]
         y_train = fold["y_train"]
         X_test = fold["X_test"]
         y_test = fold["y_test"]
-        X_val = fold["X_val"]
-        y_val = fold["y_val"]
-
+        
+        # Treina e avalia sem imprimir cada fold individualmente
         metrics = classifier_model(model, X_train, y_train, X_test, y_test, label="", printing=False)
 
         f1_scores_by_folds.append(metrics["f1-score"])
         recall_by_folds.append(metrics["recall"])
         precision_by_folds.append(metrics["precision"])
+        cms_by_folds.append(metrics["confusion_matrix"]) 
     
-    f1_mean = sum(f1_scores_by_folds) / len(f1_scores_by_folds)
-    recall_mean = sum(recall_by_folds) / len(recall_by_folds)
-    precision_mean = sum(precision_by_folds) / len(precision_by_folds)
+    # --- CÁLCULOS ESTATÍSTICOS (Média e Desvio Padrão) ---
+    f1_mean = np.mean(f1_scores_by_folds)
+    f1_std = np.std(f1_scores_by_folds)
 
-    return f1_mean, recall_mean, precision_mean
+    recall_mean = np.mean(recall_by_folds)
+    recall_std = np.std(recall_by_folds)
+
+    precision_mean = np.mean(precision_by_folds)
+    precision_std = np.std(precision_by_folds)
+
+    # Matrizes
+    cms_array = np.array(cms_by_folds)
+    cm_mean = np.mean(cms_array, axis=0)
+    cm_std = np.std(cms_array, axis=0)
+
+    # Retorna TODOS os valores (8 variáveis)
+    return f1_mean, f1_std, recall_mean, recall_std, precision_mean, precision_std, cm_mean, cm_std
 
 def evaluate_with_kfold(X, y, classifier, rkf, label="KFOLD", printing=True):
     y_preds, y_trues = [], []
@@ -831,29 +907,38 @@ def evaluate_with_kfold(X, y, classifier, rkf, label="KFOLD", printing=True):
     metrics = print_metrics(y_trues, y_preds, label=label, printing=printing)
     return metrics
 
-def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED, use_iris=True, feature_ranking = True):
+def run_model(X, y, model, split_scheme, parameters, filename, label="", random_state=SEED, use_iris=True, feature_ranking = True, printing=True, flagPrintingFoldNumber=False, save_data=False):
     if split_scheme == "TVT":
-        return train_tvt(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris)
+        return train_tvt(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris, printing=printing, flagfeatureRanking=feature_ranking, save_data=save_data)
     elif split_scheme == "CV-base":
-        f1_mean, recall_mean, precision_mean = averageInCV(X, y, model, flagPrintingFoldNumber=False, use_iris=use_iris)
-        metrics = {"recall": recall_mean, "precision": precision_mean, "f1-score": f1_mean}
+        f1_mean, f1_std, recall_mean, recall_std, precision_mean, precision_std, cm_mean, cm_std = averageInCV(X, y, model, flagPrintingFoldNumber=flagPrintingFoldNumber, use_iris=use_iris)
+        metrics = {"recall": recall_mean, "precision": precision_mean, "f1-score": f1_mean, "cm_mean": cm_mean, "cm_std": cm_std}
         print(f"\n===== {label} (means) =====")
-        print(f"Recall:    {recall_mean:.4f}")
-        print(f"Precision: {precision_mean:.4f}")
-        print(f"F1-Score:  {f1_mean:.4f}")
+        # --- IMPRESSÃO FORMATADA LADO A LADO ---
+        print("\nConfusion Matrix (Mean +/- Std)")
+        
+        # Configura para imprimir apenas 2 casas decimais para ficar alinhado
+        with np.printoptions(precision=2, suppress=True):
+            for i in range(len(cm_mean)):
+                # Imprime: [Linha Media] +/- [Linha Std]
+                print(f"{cm_mean[i]} +/- {cm_std[i]}")
+
+        print(f"Recall:    {recall_mean:.4f} ± {recall_std:.4f}")
+        print(f"Precision: {precision_mean:.4f} ± {precision_mean:.4f}")
+        print(f"F1-Score:  {f1_mean:.4f} ± {f1_std:.4f}")
         print("=========================")
         return metrics
     elif split_scheme == "CV":
         best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False)
-        metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False)
+        metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False, printing=printing)
         return metrics
     elif split_scheme == "TO":
         if use_iris == True:
             X = np.delete(X, -1, axis=1)
-        metrics = train_TO(X, y, model, printing=True, label=label)
+        metrics = train_TO(X, y, model, printing=printing, label=label)
         return metrics
     elif split_scheme == "TT":
-        metrics = train_TT(X, y, model, printing=True, label=label, use_iris=use_iris)
+        metrics = train_TT(X, y, model, printing=printing, label=label, use_iris=use_iris)
         return metrics
 
     return -1
