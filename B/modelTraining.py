@@ -520,12 +520,12 @@ def choose_average_params(all_metrics):
 
     return result, best_score
     
-def deployModel(X_train, y_train, X_test, y_test, model, bfs, parameters, filename, label = ""):
+def deployModel(X_train, y_train, X_test, y_test, model, bfs, parameters, filename, label = "", printing=True):
     
     clf = reset_model(model)
 
     # model, X_train, y_train, X_test, y_test, label = "", printing=True
-    metrics = classifier_model(clf, X_train[:, bfs], y_train, X_test[:,bfs], y_test, label=label, printing=True)
+    metrics = classifier_model(clf, X_train[:, bfs], y_train, X_test[:,bfs], y_test, label=label, printing=printing)
 
     clf = reset_model(model)
 
@@ -564,8 +564,6 @@ def createFolds(X, y, n_folds=10, n_repeats=10):
         folds.append(dic_2)
         
     return folds
-
-import numpy as np
 
 def create_repeated_person_folds(
     X,
@@ -700,9 +698,9 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", 
     else:
         bfs = list(range(X_train.shape[1]))
         best_parameters = default_parameters
-        return deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
+        return deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label, printing=True)
 
-    metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label)
+    metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label, printing=True)
     return metrics, best_score_with_val, bfs, best_parameters
 
 def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True, flagPrintingFoldNumber=True, printing=True):
