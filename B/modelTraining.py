@@ -17,10 +17,8 @@ from itertools import product
 import random
 import ast
 import os
-
 SEED = 42
 
-import numpy as np
 
 def split_dataset_by_person_tvt(X, y, person_col_index=-1):
     """
@@ -70,7 +68,6 @@ def split_dataset_by_person_tvt(X, y, person_col_index=-1):
 
     return X_train, y_train, X_val, y_val, X_test, y_test
 
-import numpy as np
 
 def split_dataset_by_person_tt(X, y, person_col_index=-1):
     """
@@ -351,18 +348,21 @@ def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None,
         
         try:
             with open(txt_filename, "w") as f:
-                # 1. Escreve o Cabeçalho
-                f.write("Feature Set,F1-Score\n")
+                # Escreve o Cabeçalho
+                f.write("Feature Set,Confusion Matrix,Recall,Precision,F1-Score\n")
                 
-                # 2. Escreve todas as linhas
+                # Escreve todas as linhas
                 for metric in metrics_list:
                     n = metric['n_features']
                     # Recupera quais features foram usadas neste passo
                     feats_used = list(scores[:n]) 
+                    cm = metric["confusion_matrix"]
+                    rec = metric["recall"]
+                    prec = metric["precision"]
                     f1 = metric['f1-score']
                     
                     # Escreve: "[0, 2, 4]",0.954
-                    f.write(f"\"{feats_used}\",{f1:.5f}\n")
+                    f.write(f"\"{feats_used}\",\n{cm}\n,{rec:.5f},{prec:.5f},{f1:.5f}\n")
                     
             # print(f"Histórico completo guardado em: {txt_filename}")
         except Exception as e:
@@ -383,9 +383,6 @@ def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None,
     
     return best_features, metrics_list
 
-
-import os
-from itertools import product
 
 def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid, save_data=False, filename=None):
     """
@@ -459,14 +456,17 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid, s
             
             with open(txt_filename, "w") as f:
                 # Cabeçalho
-                f.write("Parameters,F1-Score\n")
+                f.write("Parameters,Confusion Matrix,Recall,Precision,F1-Score\n")
                 
                 # Escreve todas as combinações testadas
                 for p, m in params_list:
+                    cm = m["confusion_matrix"]
+                    rec = m["recall"]
+                    prec = m["precision"]
                     f1 = m["f1-score"]
                     # "str(p)" converte o dicionário {'k': 5} para texto
                     # Coloquei aspas extra para o Excel não baralhar as virgulas do dicionário
-                    f.write(f"\"{str(p)}\",{f1:.5f}\n")
+                    f.write(f"\"{str(p)}\",\n{cm}\n,{rec:.5f},{prec:.5f},{f1:.5f}\n")
             
             print(f"Resultados dos parâmetros guardados em: {txt_filename}")
             
@@ -696,9 +696,17 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", 
         scores = compute_feature_ranking(X_train, y_train, printing=True)
         bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, params=default_parameters, save=True, title="TVT", filename=filename, printing=printing, save_data=save_data)
         best_parameters, best_score_with_val, _ = chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters, filename=filename, save_data=save_data)
+        print("==========Best Model============")
+        print("Best features number:", len(bfs))
+        print("Best features:", bfs)
+        print("Best Parameters:", best_parameters)
     else:
         bfs = list(range(X_train.shape[1]))
         best_parameters = default_parameters
+        print("==========Best Model============")
+        print("Best features number:", len(bfs))
+        print("Best features:", bfs)
+        print("Best Parameters:", best_parameters)
         return deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label, printing=True)
 
     metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label, printing=True)

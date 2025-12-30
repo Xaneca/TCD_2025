@@ -1,33 +1,161 @@
-Parameters,F1-Score
-"{'n_neighbors': 1, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 1, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 1, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 1, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 3, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 3, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 3, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 3, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 5, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 5, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 5, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 5, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 7, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 7, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 7, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 7, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 9, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 9, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 9, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 9, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 11, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 11, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 11, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 11, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 13, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 13, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 13, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 13, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 15, 'weights': 'uniform', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 15, 'weights': 'uniform', 'metric': 'manhattan'}",0.97775
-"{'n_neighbors': 15, 'weights': 'distance', 'metric': 'euclidean'}",0.97775
-"{'n_neighbors': 15, 'weights': 'distance', 'metric': 'manhattan'}",0.97775
+Parameters,Confusion Matrix,Recall,Precision,F1-Score
+"{'n_neighbors': 1, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 1, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 1, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 1, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 3, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 3, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 3, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 3, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 5, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 5, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 5, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 5, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 7, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 7, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 7, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 7, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 9, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 9, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 9, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 9, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 11, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 11, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 11, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 11, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 13, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 13, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 13, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 13, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 15, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 15, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 15, 'weights': 'distance', 'metric': 'euclidean'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
+"{'n_neighbors': 15, 'weights': 'distance', 'metric': 'manhattan'}",
+[[15  0  0]
+ [ 0 15  0]
+ [ 0  1 14]]
+,0.97778,0.97917,0.97775
