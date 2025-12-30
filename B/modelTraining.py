@@ -931,7 +931,7 @@ def run_model(X, y, model, split_scheme, parameters, filename, label="", random_
                 print(f"{cm_mean[i]} +/- {cm_std[i]}")
 
         print(f"Recall:    {recall_mean:.4f} ± {recall_std:.4f}")
-        print(f"Precision: {precision_mean:.4f} ± {precision_mean:.4f}")
+        print(f"Precision: {precision_mean:.4f} ± {precision_std:.4f}")
         print(f"F1-Score:  {f1_mean:.4f} ± {f1_std:.4f}")
         print("=========================")
         return metrics
