@@ -266,6 +266,7 @@ def classifier_model(model, X_train, y_train, X_test, y_test, label = "", printi
     return metrics
 
 def save_model(model, filename):
+    filename += ".pkl"
     joblib.dump(model, filename)
     print(f"Modelo salvo em {filename}")
 
@@ -345,7 +346,7 @@ def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None,
     if save_data and filename:
         # Cria nome do ficheiro de texto baseado no nome da imagem
         base_name, _ = os.path.splitext(filename)
-        print("base name",base_name)
+        # print("base name",base_name)
         txt_filename = base_name + '_feat_set_scores' + ".csv"
         
         try:
@@ -363,7 +364,7 @@ def featureRanking(X_train, y_train, X_test, y_test, model, scores, params=None,
                     # Escreve: "[0, 2, 4]",0.954
                     f.write(f"\"{feats_used}\",{f1:.5f}\n")
                     
-            print(f"Histórico completo guardado em: {txt_filename}")
+            # print(f"Histórico completo guardado em: {txt_filename}")
         except Exception as e:
             print(f"Erro ao guardar ficheiro de dados: {e}")
 
@@ -426,7 +427,7 @@ def chooseParameters(X_train, y_train, X_test, y_test, model, bfs, param_grid, s
                 best_score = score
                 best_params = params
         
-        print("Best Parameters:", best_params)
+        # print("Best Parameters:", best_params)
 
     else:
         # Caso só exista uma combinação (ex: baseline ou parametros fixos)
@@ -525,7 +526,7 @@ def deployModel(X_train, y_train, X_test, y_test, model, bfs, parameters, filena
     clf = reset_model(model)
 
     # model, X_train, y_train, X_test, y_test, label = "", printing=True
-    metrics = classifier_model(clf, X_train[:, bfs], y_train, X_test[:,bfs], y_test, label=label, printing=printing)
+    metrics = classifier_model(clf, X_train[:, bfs], y_train, X_test[:,bfs], y_test, label=label, printing=printing, params=parameters)
 
     clf = reset_model(model)
 
@@ -703,7 +704,7 @@ def train_tvt(X, y, model, parameters, filename, random_state = SEED, label="", 
     metrics = deployModel(dic["X_train_orig"], dic["y_train_orig"], dic["X_test"], dic["y_test"], model, bfs, best_parameters, filename, label=label, printing=True)
     return metrics, best_score_with_val, bfs, best_parameters
 
-def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True, flagPrintingFoldNumber=True, printing=True):
+def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 10, n_repeats = 10, label="", flagfeatureRanking=True, use_iris=True, flagPrintingFoldNumber=True, printing=True, filenameElbow=None, save_data=False):
     # Se 'models' NÃO for um dicionário (ou seja, é um modelo solto)
     if not isinstance(models, dict):
         # 1. Descobrimos um nome automático (ex: "RandomForestClassifier")
@@ -747,11 +748,11 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
             scores = list(range(X.shape[1]))
 
         m = 0
-        for modelName, model in models.items():            
+        for modelName, model in models.items():
             default_parameter = pick_first_param_values(parameters[modelName])
 
             if flagfeatureRanking:
-                bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=f"./ElbowGraphs/iris/cv_k_{model.n_neighbors}/fold_{f}_{modelName}.png")
+                bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=filename+f"_{modelName}_{f}.png", save_data=save_data)
                 best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
             else:
                 bfs = scores
@@ -807,7 +808,7 @@ def deployment_cv(X, y, model, modelName, parameters, filename, random_state = S
                     
             default_parameter = pick_first_param_values(parameters)
 
-            bfs, metrics = featureRanking(X_train_orig, y_train_orig, X_test, y_test, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV Deploy | Fold {f} | {modelName}", filename=f"./ElbowGraphs/iris/cv/deploy/fold_{f}_{modelName}.png")
+            bfs, metrics = featureRanking(X_train_orig, y_train_orig, X_test, y_test, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV Deploy | Fold {f} | {modelName}", filename=filename+f"_deploy_{f}.png")
 
             bfs_metrics.append([scores, metrics])
         bfs_final, bfs_score = choose_average_bfs(bfs_metrics)
@@ -927,8 +928,8 @@ def run_model(X, y, model, split_scheme, parameters, filename, label="", random_
         print("=========================")
         return metrics
     elif split_scheme == "CV":
-        best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False)
-        metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False, printing=printing)
+        best_model, best_model_name, parameters = train_cv(X, y, model, parameters, filename, random_state=random_state, label=label, use_iris=use_iris, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False, save_data=save_data)
+        metrics = deployment_cv(X, y, best_model, best_model_name, parameters, filename, random_state=random_state, label=label, flagfeatureRanking=feature_ranking, flagPrintingFoldNumber=False)
         return metrics
     elif split_scheme == "TO":
         if use_iris == True:
