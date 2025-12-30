@@ -1960,9 +1960,7 @@ def build_feature_dataset(
             sensor_features = []
             min_windows = np.inf
 
-            # -----------------------------
-            # 1. FEATURES POR SENSOR
-            # -----------------------------
+            # FEATURES POR SENSOR
             for s in range(num_sensors):
                 sensor_data = data_with_no_outlires[s]
 
@@ -1990,22 +1988,16 @@ def build_feature_dataset(
             if min_windows == 0 or min_windows == np.inf:
                 continue
 
-            # -----------------------------
-            # 2. ALINHAMENTO (TRUNCAMENTO)
-            # -----------------------------
+            # ALINHAMENTO (TRUNCAMENTO)
             sensor_features = [
                 feats[:min_windows, :]
                 for feats in sensor_features
             ]
 
-            # -----------------------------
-            # 3. CONCATENAÇÃO (550 features)
-            # -----------------------------
+            # CONCATENAÇÃO (550 features)
             X = np.hstack(sensor_features)  # (min_windows x 550)
 
-            # -----------------------------
-            # 4. ADICIONAR LABELS
-            # -----------------------------
+            # ADICIONAR LABELS
             activity_col = np.full((min_windows, 1), activity)
             person_col = np.full((min_windows, 1), person)
 
@@ -2013,9 +2005,7 @@ def build_feature_dataset(
 
             rows.append(X)
 
-    # -----------------------------
-    # 5. DATASET FINAL
-    # -----------------------------
+    # DATASET FINAL
     final_matrix = np.vstack(rows)
 
     columns = []
