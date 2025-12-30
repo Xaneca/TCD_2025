@@ -1,0 +1,121 @@
+Parameters,Confusion Matrix,Recall,Precision,F1-Score
+"{'max_depth': None, 'min_samples_split': 2, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'max_depth': None, 'min_samples_split': 2, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'max_depth': None, 'min_samples_split': 5, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': None, 'min_samples_split': 5, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': None, 'min_samples_split': 10, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': None, 'min_samples_split': 10, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 5, 'min_samples_split': 2, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 5, 'min_samples_split': 2, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'max_depth': 5, 'min_samples_split': 5, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 5, 'min_samples_split': 5, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 5, 'min_samples_split': 10, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 5, 'min_samples_split': 10, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 10, 'min_samples_split': 2, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'max_depth': 10, 'min_samples_split': 2, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'max_depth': 10, 'min_samples_split': 5, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 10, 'min_samples_split': 5, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 10, 'min_samples_split': 10, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 10, 'min_samples_split': 10, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 20, 'min_samples_split': 2, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'max_depth': 20, 'min_samples_split': 2, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'max_depth': 20, 'min_samples_split': 5, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 20, 'min_samples_split': 5, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 20, 'min_samples_split': 10, 'criterion': 'gini'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266
+"{'max_depth': 20, 'min_samples_split': 10, 'criterion': 'entropy'}",
+[[4 0 0]
+ [0 5 0]
+ [0 1 4]]
+,0.93333,0.94444,0.93266

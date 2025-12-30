@@ -1,0 +1,16 @@
+Parameters,Confusion Matrix,Recall,Precision,F1-Score
+"{'strategy': 'most_frequent'}",
+[[4 0 0]
+ [5 0 0]
+ [5 0 0]]
+,0.33333,0.09524,0.14815
+"{'strategy': 'stratified'}",
+[[3 0 1]
+ [1 2 2]
+ [2 2 1]]
+,0.45000,0.41667,0.42222
+"{'strategy': 'uniform'}",
+[[2 1 1]
+ [0 5 0]
+ [3 1 1]]
+,0.56667,0.53810,0.52116

@@ -761,10 +761,18 @@ def train_cv(X, y, models, parameters, filename, random_state = SEED, n_folds = 
 
             if flagfeatureRanking:
                 bfs, _ = featureRanking(X_train, y_train, X_val, y_val, model, scores, default_parameter, plot=False, printing=False, save=True, title=f"CV | {modelName} | fold {f}", filename=filename+f"_{modelName}_{f}.png", save_data=save_data)
-                best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName])
+                best_parameters, _, _= chooseParameters(X_train, y_train, X_val, y_val, model, bfs, parameters[modelName], save_data=save_data, filename=filename+f"_{modelName}_{f}")
+                print(f"==========Best Model {modelName} Fold {f}============")
+                print("Best features number:", len(bfs))
+                print("Best features:", bfs)
+                print("Best Parameters:", best_parameters)
             else:
                 bfs = scores
                 best_parameters = default_parameter
+                print(f"==========Best Model {modelName} Fold {f}============")
+                print("Best features number:", len(bfs))
+                print("Best features:", bfs)
+                print("Best Parameters:", best_parameters)
 
             score = classifier_model(model, X_train_orig[:, bfs], y_train_orig, X_test[:, bfs], y_test, printing=False, params=best_parameters)["f1-score"]
 

@@ -1,0 +1,101 @@
+Parameters,Confusion Matrix,Recall,Precision,F1-Score
+"{'n_neighbors': 1, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 1, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 1, 'weights': 'distance', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 1, 'weights': 'distance', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 3, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 3, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 3, 'weights': 'distance', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 3, 'weights': 'distance', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 5, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 5, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 5, 'weights': 'distance', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 5, 'weights': 'distance', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 7, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 4 1]
+ [0 0 5]]
+,0.93333,0.94444,0.93266
+"{'n_neighbors': 7, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 7, 'weights': 'distance', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 4 1]
+ [0 0 5]]
+,0.93333,0.94444,0.93266
+"{'n_neighbors': 7, 'weights': 'distance', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 5 0]
+ [0 0 5]]
+,1.00000,1.00000,1.00000
+"{'n_neighbors': 9, 'weights': 'uniform', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 4 1]
+ [0 0 5]]
+,0.93333,0.94444,0.93266
+"{'n_neighbors': 9, 'weights': 'uniform', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 4 1]
+ [0 0 5]]
+,0.93333,0.94444,0.93266
+"{'n_neighbors': 9, 'weights': 'distance', 'metric': 'euclidean'}",
+[[4 0 0]
+ [0 4 1]
+ [0 0 5]]
+,0.93333,0.94444,0.93266
+"{'n_neighbors': 9, 'weights': 'distance', 'metric': 'manhattan'}",
+[[4 0 0]
+ [0 4 1]
+ [0 0 5]]
+,0.93333,0.94444,0.93266
