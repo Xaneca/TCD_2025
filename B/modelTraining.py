@@ -971,3 +971,86 @@ def load_from_file(filename="data.npy", description="Dados"):
     except FileNotFoundError:
         print(f"[INFO] Ficheiro '{filename}' não encontrado. {description} será recalculado.")
         return None
+    
+################
+
+def process_and_plot_combined_notebook():
+    # --- CONFIGURAÇÕES ---
+    folder_path = './models/ex_2_4_1/'
+    models = ['SVM', 'Random', 'OneR', 'kNN']
+    num_folds = 100 
+    start_from_one = True
+
+    if not os.path.exists(folder_path):
+        print(f"Erro: A pasta '{folder_path}' não existe.")
+        return
+
+    # Cria a figura com tamanho adequado para visualização no navegador
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 12))
+    axes_flat = axes.flatten()
+
+    for i, model in enumerate(models):
+        ax = axes_flat[i]
+        
+        all_dfs = []
+        files_count = 0
+        range_folds = range(1, num_folds + 1) if start_from_one else range(num_folds)
+
+        for fold in range_folds:
+            filename = f"ex_2_4_1_cv_{model}_{fold}_feat_set_scores.csv"
+            filepath = os.path.join(folder_path, filename)
+            
+            if os.path.exists(filepath):
+                try:
+                    df = pd.read_csv(filepath, index_col=0)
+                    all_dfs.append(df)
+                    files_count += 1
+                except Exception:
+                    pass
+        
+        if files_count == 0:
+            ax.text(0.5, 0.5, f"Sem dados: {model}", ha='center', va='center')
+            continue
+
+        # Processamento
+        full_data = pd.concat(all_dfs)
+        stats = full_data.groupby(full_data.index)['F1-Score'].agg(['mean', 'std'])
+        stats = stats.sort_values(by='mean', ascending=True)
+
+        # Plot
+        bars = stats['mean'].plot(kind='bar', 
+                                  yerr=stats['std'], 
+                                  capsize=4, 
+                                  ax=ax, 
+                                  color='skyblue', 
+                                  edgecolor='black',
+                                  error_kw=dict(ecolor='red', lw=1.5))
+        
+        ax.set_title(f'{model} (Média F1 + Desvio Padrão)', fontsize=12, fontweight='bold')
+        ax.set_ylabel('F1-Score')
+        
+        # Limite Y
+        max_val = (stats['mean'] + stats['std']).max()
+        ax.set_ylim(0, 1.1 if max_val <= 1.05 else max_val + 0.1)
+        
+        ax.grid(axis='y', linestyle='--', alpha=0.6)
+        ax.tick_params(axis='x', rotation=45)
+
+        # Valores nas barras
+        for p in ax.patches:
+            ax.annotate(f'{p.get_height():.2f}', 
+                        (p.get_x() + p.get_width() / 2., p.get_height()), 
+                        ha='center', va='bottom', 
+                        xytext=(0, 5), 
+                        textcoords='offset points',
+                        fontsize=9)
+
+    plt.tight_layout()
+    
+    # Salva uma cópia física
+    output_name = f"{folder_path}todos_modelos_comparados.png"
+    plt.savefig(output_name)
+    print(f"Gráfico salvo também em: {output_name}")
+    
+    # --- A MUDANÇA IMPORTANTE PARA O JUPYTER ---
+    plt.show() 
